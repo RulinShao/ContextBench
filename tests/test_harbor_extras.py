@@ -237,3 +237,30 @@ def test_terminus_records_summarizer_calls(tmp_path: Path, monkeypatch) -> None:
     assert [(c["summarization"], c["step"], c["ok"]) for c in calls] == [
         (3, "summary", True), (3, "questions", False)]
     assert calls[0]["tokens"] > 400 > calls[1]["tokens"]
+
+
+def test_context_policy_runs_after_the_turn_is_recorded() -> None:
+    """A manage_context that drops the newest tool result must not erase it from the
+    graded record: the pre-compaction context is snapshotted first."""
+    from contextbench.harbor.agents.base import ContextBenchAgent
+
+    class Dropping(ContextBenchAgent):
+        def manage_context(self, messages):
+            messages[:] = [m for m in messages if m.get("role") != "tool"]
+
+    class AppendOnly(ContextBenchAgent):
+        pass
+
+    for cls, n_snaps in ((Dropping, 1), (AppendOnly, 0)):
+        agent = cls.__new__(cls)
+        snaps: list[tuple[list, str]] = []
+        agent.cb_snapshot = lambda m, kind, _s=snaps: _s.append((list(m), kind)) or 0
+        agent.messages = [{"role": "user", "content": "op"},
+                          {"role": "tool", "content": "<<<ANSWER qid=0>>>v<<<ANSWER END>>>"}]
+        agent._manage_context_recorded()
+        assert len(snaps) == n_snaps
+        if snaps:
+            recorded, kind = snaps[0]
+            assert kind == "turn"
+            assert any(m["role"] == "tool" for m in recorded)
+            assert all(m["role"] != "tool" for m in agent.messages)

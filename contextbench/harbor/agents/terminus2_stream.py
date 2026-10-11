@@ -98,6 +98,7 @@ class Terminus2Stream(Terminus2):
         self.turn_source: TurnSource | None = None
         #: (text, kind, op index) waiting to ride on the next prompt.
         self._cb_queue: list[tuple[str, str, int | None]] = []
+        self._cb_last_output: str | None = None
         self._cb_snap_step = 0
         self._cb_peak_tokens = 0
         self._cb_final_done = False
@@ -203,12 +204,21 @@ class Terminus2Stream(Terminus2):
                                              session: Any):
         if self.turn_source is not None and self.turn_source.done:
             return None  # no summary; _handle_llm_interaction records and stops
-        return await super()._check_proactive_summarization(
+        before = list(chat.messages)
+        result = await super()._check_proactive_summarization(
             chat, original_instruction, session
         )
+        if result is not None and self._cb_last_output:
+            # Summarization replaces the pending terminal output with a handoff prompt,
+            # so that output would never be recorded. Snapshot the context as it stood,
+            # with the output terminus was about to send, before the summary.
+            self._cb_snapshot(before + [{"role": "user", "content": self._cb_last_output}],
+                              "turn")
+        return result
 
     async def _execute_commands(self, commands: list[Command], session: Any):
         timeout_occurred, output = await super()._execute_commands(commands, session)
+        self._cb_last_output = output
         ts = self.turn_source
         if ts is not None and commands:
             last = (commands[-1].keystrokes or "").strip()

@@ -94,11 +94,13 @@ Graders read, in order of preference, the per-turn `context_snapshots/turn-*.jso
 which one they used as `graded_from`, so numbers from different sources are never
 compared by accident.
 
-A snapshot is the context the agent holds at that point: what the Python runner reads
-from `context()` after each turn, and what a Harbor agent is about to send to the model.
-An answer is credited once it appears in a snapshot. An agent that drops an answer, or
-the tool output that holds it, before the next snapshot gets no credit for it, so
-removing a finished operation is safe only after its answer has been kept for one turn.
+An answer is credited once it appears in any snapshot. A Harbor agent snapshots the
+context it is about to send to the model, and it also snapshots each turn's context, tool
+output included, before its own compaction runs (`manage_context` in `ContextBenchAgent`,
+terminus-2's summarization). An answer that the harness compacts away right after it
+arrives therefore still counts. The Python runner snapshots `context()` after each turn,
+so an agent driven through it should compact at the start of its next turn rather than
+right after producing an answer.
 
 ## Harbor
 

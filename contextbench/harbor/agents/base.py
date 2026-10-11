@@ -137,6 +137,16 @@ class ContextBenchAgent(CBStreamMixin, BaseAgent):
     def manage_context(self, messages: list[dict[str, Any]]) -> None:
         """Rewrite ``messages`` in place between turns. Append-only: no-op."""
 
+    def _manage_context_recorded(self) -> None:
+        """Run :meth:`manage_context`; if it changed the context, first snapshot the
+        context it started from (``kind="turn"``). The turn's tool result is then
+        graded even when the policy removes it before the next request, as the paper's
+        summary and edit-context harnesses recorded each turn before compacting."""
+        before = list(self.messages)
+        self.manage_context(self.messages)
+        if self.messages != before:
+            self.cb_snapshot(before, "turn")
+
     # ------------------------------------------------------------------ model
     def _get_client(self) -> Any:
         if self._client is None:
@@ -259,7 +269,7 @@ class ContextBenchAgent(CBStreamMixin, BaseAgent):
                             if proto.mentions_advance_marker(msg.get("content") or "")
                             else NO_TOOL_CALL_TEXT)
                     self.messages.append({"role": "user", "content": note})
-                    self.manage_context(self.messages)
+                    self._manage_context_recorded()
                     continue
 
                 call = calls[0]
@@ -283,7 +293,7 @@ class ContextBenchAgent(CBStreamMixin, BaseAgent):
                      "content": content}
                 )
                 self.messages += self.cb_user_turns(self.cb_pending(command, rc, turn=step))
-                self.manage_context(self.messages)
+                self._manage_context_recorded()
         except asyncio.CancelledError:
             self.cb_finish("timeout")
             raise

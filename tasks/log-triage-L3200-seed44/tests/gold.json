@@ -1,0 +1,160 @@
+{
+  "queries": [
+    {
+      "qid": 0,
+      "type": "lookup",
+      "prompt": "What is the message of the log line with req=42ad5f56?",
+      "answer": "spike timeout shard cache pool exhausted queue handshake throttled #5387ea99"
+    },
+    {
+      "qid": 1,
+      "type": "lookup",
+      "prompt": "What is the message of the log line with req=78dcb2e9?",
+      "answer": "token expired backlog latency upstream shard #5500ebb4"
+    },
+    {
+      "qid": 2,
+      "type": "lookup",
+      "prompt": "What is the message of the log line with req=f447e1f2?",
+      "answer": "exhausted pool expired handshake deadlock downstream spike #feb98599"
+    },
+    {
+      "qid": 3,
+      "type": "lookup",
+      "prompt": "What is the message of the log line with req=7cdf1340?",
+      "answer": "reset timeout exhausted timeout quota miss upstream token shard #736d2b1c"
+    },
+    {
+      "qid": 4,
+      "type": "lookup",
+      "prompt": "What is the message of the log line with req=3d3c19f0?",
+      "answer": "cache pool upstream shard refused lag exhausted #cfb332be"
+    },
+    {
+      "qid": 5,
+      "type": "lookup",
+      "prompt": "What is the message of the log line with req=8eb3f6a7?",
+      "answer": "reset replica pool retry lag lag downstream spike miss #59ddb3e4"
+    },
+    {
+      "qid": 6,
+      "type": "lookup",
+      "prompt": "What is the message of the log line with req=6aa108bb?",
+      "answer": "handshake expired replica connection connection exhausted spike shard #4acafbdc"
+    },
+    {
+      "qid": 7,
+      "type": "lookup",
+      "prompt": "What is the message of the log line with req=b4b4c302?",
+      "answer": "expired handshake expired quota quota throttled latency #ef163ffe"
+    },
+    {
+      "qid": 8,
+      "type": "lookup",
+      "prompt": "What is the message of the log line with req=8e3382d1?",
+      "answer": "connection downstream handshake replica backlog expired reset throttled connection #99bbeee6"
+    },
+    {
+      "qid": 9,
+      "type": "lookup",
+      "prompt": "What is the message of the log line with req=9f48e6fd?",
+      "answer": "cache handshake pool backlog downstream deadlock token latency #9b153663"
+    },
+    {
+      "qid": 10,
+      "type": "lookup",
+      "prompt": "What is the message of the log line with req=41026e6d?",
+      "answer": "latency evicted refused connection expired #7b1bdd30"
+    },
+    {
+      "qid": 11,
+      "type": "lookup",
+      "prompt": "What is the message of the log line with req=17302223?",
+      "answer": "replica retry exhausted downstream #805c9eee"
+    },
+    {
+      "qid": 12,
+      "type": "count",
+      "prompt": "How many [ERROR] log lines are from service \"billing\"?",
+      "answer": "85"
+    },
+    {
+      "qid": 13,
+      "type": "count",
+      "prompt": "How many [INFO] log lines are from service \"cache-svc\"?",
+      "answer": "333"
+    },
+    {
+      "qid": 14,
+      "type": "count",
+      "prompt": "How many [ERROR] log lines are from service \"cache-svc\"?",
+      "answer": "82"
+    },
+    {
+      "qid": 15,
+      "type": "count",
+      "prompt": "How many [ERROR] log lines are from service \"worker\"?",
+      "answer": "82"
+    },
+    {
+      "qid": 16,
+      "type": "count",
+      "prompt": "How many [WARN] log lines are from service \"cache-svc\"?",
+      "answer": "117"
+    },
+    {
+      "qid": 17,
+      "type": "count",
+      "prompt": "How many [INFO] log lines are from service \"worker\"?",
+      "answer": "344"
+    },
+    {
+      "qid": 18,
+      "type": "count",
+      "prompt": "How many [ERROR] log lines are from service \"auth-svc\"?",
+      "answer": "63"
+    },
+    {
+      "qid": 19,
+      "type": "count",
+      "prompt": "How many [WARN] log lines are from service \"cache-svc\"?",
+      "answer": "117"
+    },
+    {
+      "qid": 20,
+      "type": "count",
+      "prompt": "How many [ERROR] log lines are from service \"auth-svc\"?",
+      "answer": "63"
+    },
+    {
+      "qid": 21,
+      "type": "count",
+      "prompt": "How many [INFO] log lines are from service \"cache-svc\"?",
+      "answer": "333"
+    },
+    {
+      "qid": 22,
+      "type": "count",
+      "prompt": "How many [INFO] log lines are from service \"worker\"?",
+      "answer": "344"
+    },
+    {
+      "qid": 23,
+      "type": "count",
+      "prompt": "How many [WARN] log lines are from service \"auth-svc\"?",
+      "answer": "142"
+    }
+  ],
+  "meta": {
+    "task_family": "log_triage",
+    "seed": 44,
+    "lines": 3200,
+    "lines_per_batch": 27,
+    "queries": 24,
+    "n_lookup": 12,
+    "n_count": 12,
+    "n_batches": 119,
+    "n_actions": 143,
+    "approx_log_tokens": 87734
+  }
+}

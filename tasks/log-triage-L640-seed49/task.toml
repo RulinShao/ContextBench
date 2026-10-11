@@ -1,0 +1,42 @@
+[metadata]
+author_name = "contextbench"
+difficulty = "medium"
+category = "context-management"
+tags = ["context-management", "contextbench", "log-triage", "aggregation"]
+contextbench_family = "log_triage"
+contextbench_budget_tokens = 32768
+contextbench_reserve_tokens = 2048
+contextbench_pressure = 0.886
+contextbench_feasible = true
+contextbench_regime = "sub-budget"
+contextbench_stream_count = 70
+contextbench_stream_sha256 = "d02965f7c01f04965426d2d3c1c334341b2c96cf9aeff2025d28e1d5a590d377"
+instance_approx_log_tokens = 17475
+instance_lines = 640
+instance_lines_per_batch = 14
+instance_n_actions = 70
+instance_n_batches = 46
+instance_n_count = 12
+instance_n_lookup = 12
+instance_queries = 24
+instance_seed = 49
+instance_task_family = "log_triage"
+
+[verifier]
+timeout_sec = 600.0
+
+[agent]
+timeout_sec = 14400.0
+
+[environment]
+docker_image = "python:3.12-slim"
+workdir = "/app"
+build_timeout_sec = 600.0
+cpus = 1
+memory_mb = 2048
+storage_mb = 4096
+
+[environment.env]
+CONTEXTBENCH_STREAM_COUNT = "70"
+CONTEXTBENCH_STREAM_SHA256 = "d02965f7c01f04965426d2d3c1c334341b2c96cf9aeff2025d28e1d5a590d377"
+CONTEXTBENCH_STREAM_PATH = "/app/stream/chunks.jsonl"

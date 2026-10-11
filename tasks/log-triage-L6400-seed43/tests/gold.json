@@ -1,0 +1,160 @@
+{
+  "queries": [
+    {
+      "qid": 0,
+      "type": "lookup",
+      "prompt": "What is the message of the log line with req=d1ee0a26?",
+      "answer": "heartbeat rollback handshake pool connection queue heartbeat #cf9c20c4"
+    },
+    {
+      "qid": 1,
+      "type": "lookup",
+      "prompt": "What is the message of the log line with req=ec4289ea?",
+      "answer": "shard backlog heartbeat queue token miss #bbc9d371"
+    },
+    {
+      "qid": 2,
+      "type": "lookup",
+      "prompt": "What is the message of the log line with req=a904f0d7?",
+      "answer": "retry queue exhausted refused #e11d5762"
+    },
+    {
+      "qid": 3,
+      "type": "lookup",
+      "prompt": "What is the message of the log line with req=63324d6c?",
+      "answer": "connection timeout evicted shard connection quota latency #b61c7802"
+    },
+    {
+      "qid": 4,
+      "type": "lookup",
+      "prompt": "What is the message of the log line with req=6a1ac0e8?",
+      "answer": "latency handshake shard expired replica deadlock timeout evicted shard #9309bca3"
+    },
+    {
+      "qid": 5,
+      "type": "lookup",
+      "prompt": "What is the message of the log line with req=773def05?",
+      "answer": "retry reset quota timeout timeout heartbeat rollback downstream #c8966ff5"
+    },
+    {
+      "qid": 6,
+      "type": "lookup",
+      "prompt": "What is the message of the log line with req=26c333ea?",
+      "answer": "queue timeout throttled retry throttled quota reset token shard #5b4c41fc"
+    },
+    {
+      "qid": 7,
+      "type": "lookup",
+      "prompt": "What is the message of the log line with req=0bc132af?",
+      "answer": "evicted queue refused cache handshake connection #99a9f9e1"
+    },
+    {
+      "qid": 8,
+      "type": "lookup",
+      "prompt": "What is the message of the log line with req=05725033?",
+      "answer": "lag backlog upstream latency retry quota replica shard latency #36761e40"
+    },
+    {
+      "qid": 9,
+      "type": "lookup",
+      "prompt": "What is the message of the log line with req=62e7b459?",
+      "answer": "reset retry cache miss miss spike evicted downstream throttled #3c5fcecc"
+    },
+    {
+      "qid": 10,
+      "type": "lookup",
+      "prompt": "What is the message of the log line with req=c9399157?",
+      "answer": "queue heartbeat heartbeat shard token heartbeat cache pool #191bf390"
+    },
+    {
+      "qid": 11,
+      "type": "lookup",
+      "prompt": "What is the message of the log line with req=90b8cfd7?",
+      "answer": "throttled evicted handshake replica #9366937b"
+    },
+    {
+      "qid": 12,
+      "type": "count",
+      "prompt": "How many [WARN] log lines are from service \"auth-svc\"?",
+      "answer": "233"
+    },
+    {
+      "qid": 13,
+      "type": "count",
+      "prompt": "How many [ERROR] log lines are from service \"db-proxy\"?",
+      "answer": "168"
+    },
+    {
+      "qid": 14,
+      "type": "count",
+      "prompt": "How many [ERROR] log lines are from service \"cache-svc\"?",
+      "answer": "169"
+    },
+    {
+      "qid": 15,
+      "type": "count",
+      "prompt": "How many [ERROR] log lines are from service \"db-proxy\"?",
+      "answer": "168"
+    },
+    {
+      "qid": 16,
+      "type": "count",
+      "prompt": "How many [ERROR] log lines are from service \"cache-svc\"?",
+      "answer": "169"
+    },
+    {
+      "qid": 17,
+      "type": "count",
+      "prompt": "How many [INFO] log lines are from service \"api-gw\"?",
+      "answer": "634"
+    },
+    {
+      "qid": 18,
+      "type": "count",
+      "prompt": "How many [ERROR] log lines are from service \"db-proxy\"?",
+      "answer": "168"
+    },
+    {
+      "qid": 19,
+      "type": "count",
+      "prompt": "How many [WARN] log lines are from service \"auth-svc\"?",
+      "answer": "233"
+    },
+    {
+      "qid": 20,
+      "type": "count",
+      "prompt": "How many [ERROR] log lines are from service \"worker\"?",
+      "answer": "181"
+    },
+    {
+      "qid": 21,
+      "type": "count",
+      "prompt": "How many [ERROR] log lines are from service \"worker\"?",
+      "answer": "181"
+    },
+    {
+      "qid": 22,
+      "type": "count",
+      "prompt": "How many [INFO] log lines are from service \"billing\"?",
+      "answer": "691"
+    },
+    {
+      "qid": 23,
+      "type": "count",
+      "prompt": "How many [ERROR] log lines are from service \"db-proxy\"?",
+      "answer": "168"
+    }
+  ],
+  "meta": {
+    "task_family": "log_triage",
+    "seed": 43,
+    "lines": 6400,
+    "lines_per_batch": 54,
+    "queries": 24,
+    "n_lookup": 12,
+    "n_count": 12,
+    "n_batches": 119,
+    "n_actions": 143,
+    "approx_log_tokens": 175627
+  }
+}

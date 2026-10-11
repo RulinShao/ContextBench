@@ -1,0 +1,14 @@
+{
+  "task_family": "kv_store",
+  "seed": 44,
+  "records": 4000,
+  "value_words": 24,
+  "records_per_chunk": 100,
+  "queries": 24,
+  "n_set": 4000,
+  "n_get": 24,
+  "n_batches": 40,
+  "n_actions": 64,
+  "approx_value_tokens": 193715,
+  "approx_per_value_tokens": 48
+}

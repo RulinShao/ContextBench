@@ -1,0 +1,43 @@
+[metadata]
+author_name = "contextbench"
+difficulty = "medium"
+category = "context-management"
+tags = ["context-management", "contextbench", "sudoku", "state-update"]
+contextbench_family = "sudoku_sketchpad"
+contextbench_budget_tokens = 32768
+contextbench_reserve_tokens = 2048
+contextbench_pressure = 7.333
+contextbench_feasible = true
+contextbench_regime = "pressure"
+contextbench_stream_count = 100
+contextbench_stream_sha256 = "833e15f69832f2a5566de92271d31860f192b69b75b41bb12b97a8a8bbfff4b6"
+instance_approx_actions_tokens = 5201
+instance_approx_grid_tokens = 581
+instance_approx_per_action_tokens = 52
+instance_boards = 1
+instance_box = 4
+instance_givens = 90
+instance_n_cells = 256
+instance_n_turns = 100
+instance_seed = 44
+instance_side = 16
+instance_task_family = "sudoku_sketchpad"
+
+[verifier]
+timeout_sec = 600.0
+
+[agent]
+timeout_sec = 14400.0
+
+[environment]
+docker_image = "python:3.12-slim"
+workdir = "/app"
+build_timeout_sec = 600.0
+cpus = 1
+memory_mb = 2048
+storage_mb = 4096
+
+[environment.env]
+CONTEXTBENCH_STREAM_COUNT = "100"
+CONTEXTBENCH_STREAM_SHA256 = "833e15f69832f2a5566de92271d31860f192b69b75b41bb12b97a8a8bbfff4b6"
+CONTEXTBENCH_STREAM_PATH = "/app/stream/chunks.jsonl"

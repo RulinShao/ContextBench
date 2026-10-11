@@ -1,0 +1,12 @@
+{
+  "task_family": "log_triage",
+  "seed": 48,
+  "lines": 1600,
+  "lines_per_batch": 14,
+  "queries": 24,
+  "n_lookup": 12,
+  "n_count": 12,
+  "n_batches": 115,
+  "n_actions": 139,
+  "approx_log_tokens": 43915
+}

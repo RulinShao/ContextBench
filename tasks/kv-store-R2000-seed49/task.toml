@@ -1,0 +1,44 @@
+[metadata]
+author_name = "contextbench"
+difficulty = "medium"
+category = "context-management"
+tags = ["context-management", "contextbench", "kv-store", "storage-offloading"]
+contextbench_family = "kv_store"
+contextbench_budget_tokens = 32768
+contextbench_reserve_tokens = 2048
+contextbench_pressure = 3.011
+contextbench_feasible = true
+contextbench_regime = "pressure"
+contextbench_stream_count = 44
+contextbench_stream_sha256 = "7b0fa56fcf3b2c56d34270132266bc2e61f009947c4f7c565021812dd33ca337"
+instance_approx_per_value_tokens = 48
+instance_approx_value_tokens = 96903
+instance_n_actions = 44
+instance_n_batches = 20
+instance_n_get = 24
+instance_n_set = 2000
+instance_queries = 24
+instance_records = 2000
+instance_records_per_chunk = 100
+instance_seed = 49
+instance_task_family = "kv_store"
+instance_value_words = 24
+
+[verifier]
+timeout_sec = 600.0
+
+[agent]
+timeout_sec = 14400.0
+
+[environment]
+docker_image = "python:3.12-slim"
+workdir = "/app"
+build_timeout_sec = 600.0
+cpus = 1
+memory_mb = 2048
+storage_mb = 4096
+
+[environment.env]
+CONTEXTBENCH_STREAM_COUNT = "44"
+CONTEXTBENCH_STREAM_SHA256 = "7b0fa56fcf3b2c56d34270132266bc2e61f009947c4f7c565021812dd33ca337"
+CONTEXTBENCH_STREAM_PATH = "/app/stream/chunks.jsonl"

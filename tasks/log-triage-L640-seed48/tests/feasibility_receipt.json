@@ -1,0 +1,38 @@
+{
+  "verdict": "PASS",
+  "feasible": true,
+  "task_family": "log_triage",
+  "checks": {
+    "pressure": {
+      "pass": true,
+      "detail": "streamed 28825 / budget 32768 = P 0.88 (sub-budget (expected))"
+    },
+    "small_ops": {
+      "pass": true,
+      "detail": "max op 621 tok (cap 5529 = usable 30720 / 5 x 0.9)"
+    },
+    "retained": {
+      "pass": true,
+      "detail": "retained 1224 tok [emitted answers (batches live on disk)] (cap 13824 = usable / 2 x 0.9)"
+    },
+    "horizon": {
+      "pass": true,
+      "detail": "70 ops (need >= 4)"
+    }
+  },
+  "measured": {
+    "P": 0.88,
+    "streamed_tokens": 28825,
+    "max_op_tokens": 621,
+    "retained_tokens": 1224,
+    "n_ops": 70
+  },
+  "budget": 32768,
+  "reserve": 2048,
+  "usable_tokens": 30720,
+  "cap_op_tokens": 5529,
+  "cap_retained_tokens": 13824,
+  "regime": "sub-budget",
+  "token_method": "tiktoken:o200k_base",
+  "validator_sha16": "ad7a9a4d10534c47"
+}

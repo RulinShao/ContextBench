@@ -1,0 +1,170 @@
+ContextBench turn source for Harbor 0.16 terminus-2: the in-place equivalent of
+contextbench.harbor.agents.Terminus2Stream, for people who prefer patching Harbor.
+
+Apply from the site-packages directory that contains harbor/:
+    patch -p1 < harbor-0.16-terminus2-turn-source.patch
+Then run terminus-2 with --agent-kwarg contextbench_stream=true. With the kwarg
+unset (the default) the agent behaves exactly as before. Requires contextbench to
+be importable by the harbor process. Generated against harbor 0.16.1.
+
+--- a/harbor/agents/terminus_2/terminus_2.py
++++ b/harbor/agents/terminus_2/terminus_2.py
+@@ -1,3 +1,4 @@
++import asyncio
+ import copy
+ import shlex
+ import time
+@@ -183,6 +184,9 @@
+         llm_kwargs: dict[str, Any] | None = None,
+         llm_call_kwargs: dict[str, Any] | None = None,
+         extra_env: dict[str, str] | None = None,
++        contextbench_stream: bool = False,
++        context_budget_tokens: int = 32768,
++        context_budget_reserve_tokens: int = 2048,
+         *args,
+         **kwargs,
+     ):
+@@ -342,6 +346,28 @@
+         self._store_all_messages = store_all_messages
+         self._interleaved_thinking = interleaved_thinking
+         self._llm_kwargs = llm_kwargs
++        # ContextBench: ops streamed as user turns (off by default).
++        self._cb_enabled = str(contextbench_stream).strip().lower() in ("1", "true", "yes")
++        self._cb_budget = context_budget_tokens
++        self._cb_reserve = context_budget_reserve_tokens
++        self._cb_stream = None  # contextbench.harbor.TurnSource, loaded in run()
++        self._cb_texts: list[tuple[str, str, int | None]] = []
++        self._cb_snap_step = 0
++
++    def _cb_snapshot(self, messages: list, kind: str) -> int:
++        from contextbench.tokens import count_tokens, record_snapshot
++
++        tokens, _ = count_tokens(messages)
++        record_snapshot(
++            self.logs_dir, self._cb_snap_step, list(messages),
++            {"kind": kind, "episode": self._n_episodes,
++             "summarization_count": self._summarization_count,
++             "n_ops_delivered": self._cb_stream.n_delivered,
++             "n_ops_total": self._cb_stream.n_total,
++             "budget": self._cb_budget, "reserve": self._cb_reserve},
++        )
++        self._cb_snap_step += 1
++        return tokens
+ 
+     def _resolve_model_info(
+         self, model_name: str | None, provided_model_info: dict[str, Any] | None
+@@ -1253,6 +1279,12 @@
+ 
+         for episode in range(self._max_episodes):
+             self._n_episodes = episode + 1
++            if self._cb_stream is not None and self._cb_stream.done:
++                # the last command's output is in ``prompt``: keep it in the record
++                self._cb_snapshot(
++                    list(chat.messages) + [{"role": "user", "content": prompt}], "final"
++                )
++                return
+             if not await self._session.is_session_alive():
+                 self.logger.debug("Session has ended, breaking out of agent loop")
+                 return
+@@ -1270,6 +1302,27 @@
+                     # Also store the handoff prompt to add as a user step
+                     self._pending_handoff_prompt = prompt
+ 
++            if self._cb_stream is not None:
++                if self._cb_texts:
++                    for text, kind, index in self._cb_texts:
++                        self._trajectory_steps.append(
++                            Step(
++                                step_id=len(self._trajectory_steps) + 1,
++                                timestamp=datetime.now(timezone.utc).isoformat(),
++                                source="user",
++                                message=text,
++                                extra={"contextbench": {"kind": kind, "op_index": index}},
++                            )
++                        )
++                    prompt = prompt.rstrip("\n") + "\n\n" + "\n\n".join(
++                        t for t, _, _ in self._cb_texts
++                    )
++                    self._cb_texts = []
++                pending = list(chat.messages) + [{"role": "user", "content": prompt}]
++                if self._cb_snapshot(pending, "sent") > self._cb_budget - self._cb_reserve:
++                    self._cb_stream.terminate("budget_wall")
++                    return
++
+             # Track token counts and cost before this step
+             tokens_before_input = chat.total_input_tokens
+             tokens_before_output = chat.total_output_tokens
+@@ -1287,6 +1340,9 @@
+                 chat, prompt, original_instruction, self._session
+             )
+ 
++            if self._cb_stream is not None:
++                self._cb_snapshot(chat.messages, "turn")
++
+             # If we have pending subagent refs, add a system step to record the delegation
+             # This must happen before we build the agent step
+             # We use len(self._trajectory_steps) + 1 as the step_id to ensure it's sequential
+@@ -1401,6 +1457,28 @@
+                 self._session,
+             )
+ 
++            if self._cb_stream is not None:
++                if is_task_complete and not self._cb_stream.drained:
++                    is_task_complete = False  # refused: ops remain
++                    for text in self._cb_stream.on_submit(trigger="task_complete"):
++                        self._cb_texts.append((text, "protocol", None))
++                if commands:
++                    from contextbench.stream import is_ready_line
++
++                    # tmux has no exit code: the marker counts only when the echo's
++                    # own output line was printed (not typed into a waiting program).
++                    ran = not timeout_occurred and is_ready_line(terminal_output)
++                    before = self._cb_stream.n_delivered
++                    for text in self._cb_stream.pending(
++                        commands[-1].keystrokes.strip(),
++                        None if ran else 1,
++                        turn=self._n_episodes,
++                    ):
++                        kind = "op" if self._cb_stream.n_delivered > before else "protocol"
++                        self._cb_texts.append(
++                            (text, kind, before if kind == "op" else None)
++                        )
++
+             # Capture the pending completion state before potentially modifying it
+             was_pending_completion = self._pending_completion
+ 
+@@ -1594,6 +1672,13 @@
+             terminal_state=terminal_state,
+         )
+ 
++        if self._cb_enabled:
++            from contextbench.harbor import TurnSource
++
++            self._cb_stream = await TurnSource.load(environment, logs_dir=self.logs_dir)
++            first = self._cb_stream.first_turn(turn=0)
++            self._cb_texts = [(first, "op", 0)] if first is not None else []
++
+         self._trajectory_steps.append(
+             Step(
+                 step_id=1,
+@@ -1609,7 +1694,20 @@
+                 chat=self._chat,
+                 original_instruction=instruction,
+             )
++            if self._cb_stream is not None and not self._cb_stream.done:
++                self._cb_stream.terminate(
++                    "submit" if self._pending_completion and self._cb_stream.drained
++                    else "max_steps"
++                )
++        except asyncio.CancelledError:
++            if self._cb_stream is not None:
++                self._cb_stream.terminate("timeout")
++            raise
+         finally:
++            if self._cb_stream is not None:
++                if self._cb_stream.terminated_by != "stream_exhausted":
++                    self._cb_snapshot(self._chat.messages, "final")
++                self._cb_stream.write()
+             # Always capture metrics and rollout details even if the agent times out or errors
+             # Combine main chat rollout details with subagent rollout details
+             context.rollout_details = (

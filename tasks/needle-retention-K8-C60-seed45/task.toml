@@ -1,0 +1,44 @@
+[metadata]
+author_name = "contextbench"
+difficulty = "medium"
+category = "context-management"
+tags = ["context-management", "contextbench", "needle-retention", "selective-retention"]
+contextbench_family = "needle_retention"
+contextbench_budget_tokens = 32768
+contextbench_reserve_tokens = 2048
+contextbench_pressure = 7.482
+contextbench_feasible = true
+contextbench_regime = "pressure"
+contextbench_stream_count = 60
+contextbench_stream_sha256 = "4f78bf00adf2e5fea90bce7b1784410d91d7e979e6f679bbd0452cc81ee00d29"
+instance_alpha_nominal = 0.053554922292200484
+instance_approx_chunk_tokens = 3479
+instance_approx_input_tokens = 208795
+instance_approx_kept_tokens = 11182
+instance_chunks = 60
+instance_filler_lines_per_chunk = 140
+instance_n_answer_lines = 480
+instance_n_source_lines = 8880
+instance_needles_per_chunk = 8
+instance_seed = 45
+instance_task_family = "needle_retention"
+instance_words_per_line = 10
+
+[verifier]
+timeout_sec = 600.0
+
+[agent]
+timeout_sec = 14400.0
+
+[environment]
+docker_image = "python:3.12-slim"
+workdir = "/app"
+build_timeout_sec = 600.0
+cpus = 1
+memory_mb = 2048
+storage_mb = 4096
+
+[environment.env]
+CONTEXTBENCH_STREAM_COUNT = "60"
+CONTEXTBENCH_STREAM_SHA256 = "4f78bf00adf2e5fea90bce7b1784410d91d7e979e6f679bbd0452cc81ee00d29"
+CONTEXTBENCH_STREAM_PATH = "/app/stream/chunks.jsonl"

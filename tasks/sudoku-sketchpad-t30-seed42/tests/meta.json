@@ -1,0 +1,13 @@
+{
+  "task_family": "sudoku_sketchpad",
+  "seed": 42,
+  "box": 4,
+  "side": 16,
+  "n_cells": 256,
+  "givens": 90,
+  "boards": 1,
+  "n_turns": 30,
+  "approx_grid_tokens": 581,
+  "approx_actions_tokens": 1555,
+  "approx_per_action_tokens": 51
+}

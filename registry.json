@@ -1,0 +1,2085 @@
+[
+  {
+    "name": "contextbench",
+    "version": "1.0",
+    "description": "ContextBench: streamed tasks that exceed the context budget.",
+    "tasks": [
+      {
+        "name": "kv-store-R1000-seed42",
+        "path": "tasks/kv-store-R1000-seed42"
+      },
+      {
+        "name": "kv-store-R1000-seed43",
+        "path": "tasks/kv-store-R1000-seed43"
+      },
+      {
+        "name": "kv-store-R1000-seed44",
+        "path": "tasks/kv-store-R1000-seed44"
+      },
+      {
+        "name": "kv-store-R1000-seed45",
+        "path": "tasks/kv-store-R1000-seed45"
+      },
+      {
+        "name": "kv-store-R1000-seed46",
+        "path": "tasks/kv-store-R1000-seed46"
+      },
+      {
+        "name": "kv-store-R1000-seed47",
+        "path": "tasks/kv-store-R1000-seed47"
+      },
+      {
+        "name": "kv-store-R1000-seed48",
+        "path": "tasks/kv-store-R1000-seed48"
+      },
+      {
+        "name": "kv-store-R1000-seed49",
+        "path": "tasks/kv-store-R1000-seed49"
+      },
+      {
+        "name": "kv-store-R130-seed42",
+        "path": "tasks/kv-store-R130-seed42"
+      },
+      {
+        "name": "kv-store-R130-seed43",
+        "path": "tasks/kv-store-R130-seed43"
+      },
+      {
+        "name": "kv-store-R130-seed44",
+        "path": "tasks/kv-store-R130-seed44"
+      },
+      {
+        "name": "kv-store-R130-seed45",
+        "path": "tasks/kv-store-R130-seed45"
+      },
+      {
+        "name": "kv-store-R130-seed46",
+        "path": "tasks/kv-store-R130-seed46"
+      },
+      {
+        "name": "kv-store-R130-seed47",
+        "path": "tasks/kv-store-R130-seed47"
+      },
+      {
+        "name": "kv-store-R130-seed48",
+        "path": "tasks/kv-store-R130-seed48"
+      },
+      {
+        "name": "kv-store-R130-seed49",
+        "path": "tasks/kv-store-R130-seed49"
+      },
+      {
+        "name": "kv-store-R16000-seed42",
+        "path": "tasks/kv-store-R16000-seed42"
+      },
+      {
+        "name": "kv-store-R16000-seed43",
+        "path": "tasks/kv-store-R16000-seed43"
+      },
+      {
+        "name": "kv-store-R16000-seed44",
+        "path": "tasks/kv-store-R16000-seed44"
+      },
+      {
+        "name": "kv-store-R16000-seed45",
+        "path": "tasks/kv-store-R16000-seed45"
+      },
+      {
+        "name": "kv-store-R16000-seed46",
+        "path": "tasks/kv-store-R16000-seed46"
+      },
+      {
+        "name": "kv-store-R16000-seed47",
+        "path": "tasks/kv-store-R16000-seed47"
+      },
+      {
+        "name": "kv-store-R16000-seed48",
+        "path": "tasks/kv-store-R16000-seed48"
+      },
+      {
+        "name": "kv-store-R16000-seed49",
+        "path": "tasks/kv-store-R16000-seed49"
+      },
+      {
+        "name": "kv-store-R2000-seed42",
+        "path": "tasks/kv-store-R2000-seed42"
+      },
+      {
+        "name": "kv-store-R2000-seed43",
+        "path": "tasks/kv-store-R2000-seed43"
+      },
+      {
+        "name": "kv-store-R2000-seed44",
+        "path": "tasks/kv-store-R2000-seed44"
+      },
+      {
+        "name": "kv-store-R2000-seed45",
+        "path": "tasks/kv-store-R2000-seed45"
+      },
+      {
+        "name": "kv-store-R2000-seed46",
+        "path": "tasks/kv-store-R2000-seed46"
+      },
+      {
+        "name": "kv-store-R2000-seed47",
+        "path": "tasks/kv-store-R2000-seed47"
+      },
+      {
+        "name": "kv-store-R2000-seed48",
+        "path": "tasks/kv-store-R2000-seed48"
+      },
+      {
+        "name": "kv-store-R2000-seed49",
+        "path": "tasks/kv-store-R2000-seed49"
+      },
+      {
+        "name": "kv-store-R260-seed42",
+        "path": "tasks/kv-store-R260-seed42"
+      },
+      {
+        "name": "kv-store-R260-seed43",
+        "path": "tasks/kv-store-R260-seed43"
+      },
+      {
+        "name": "kv-store-R260-seed44",
+        "path": "tasks/kv-store-R260-seed44"
+      },
+      {
+        "name": "kv-store-R260-seed45",
+        "path": "tasks/kv-store-R260-seed45"
+      },
+      {
+        "name": "kv-store-R260-seed46",
+        "path": "tasks/kv-store-R260-seed46"
+      },
+      {
+        "name": "kv-store-R260-seed47",
+        "path": "tasks/kv-store-R260-seed47"
+      },
+      {
+        "name": "kv-store-R260-seed48",
+        "path": "tasks/kv-store-R260-seed48"
+      },
+      {
+        "name": "kv-store-R260-seed49",
+        "path": "tasks/kv-store-R260-seed49"
+      },
+      {
+        "name": "kv-store-R4000-seed42",
+        "path": "tasks/kv-store-R4000-seed42"
+      },
+      {
+        "name": "kv-store-R4000-seed43",
+        "path": "tasks/kv-store-R4000-seed43"
+      },
+      {
+        "name": "kv-store-R4000-seed44",
+        "path": "tasks/kv-store-R4000-seed44"
+      },
+      {
+        "name": "kv-store-R4000-seed45",
+        "path": "tasks/kv-store-R4000-seed45"
+      },
+      {
+        "name": "kv-store-R4000-seed46",
+        "path": "tasks/kv-store-R4000-seed46"
+      },
+      {
+        "name": "kv-store-R4000-seed47",
+        "path": "tasks/kv-store-R4000-seed47"
+      },
+      {
+        "name": "kv-store-R4000-seed48",
+        "path": "tasks/kv-store-R4000-seed48"
+      },
+      {
+        "name": "kv-store-R4000-seed49",
+        "path": "tasks/kv-store-R4000-seed49"
+      },
+      {
+        "name": "kv-store-R520-seed42",
+        "path": "tasks/kv-store-R520-seed42"
+      },
+      {
+        "name": "kv-store-R520-seed43",
+        "path": "tasks/kv-store-R520-seed43"
+      },
+      {
+        "name": "kv-store-R520-seed44",
+        "path": "tasks/kv-store-R520-seed44"
+      },
+      {
+        "name": "kv-store-R520-seed45",
+        "path": "tasks/kv-store-R520-seed45"
+      },
+      {
+        "name": "kv-store-R520-seed46",
+        "path": "tasks/kv-store-R520-seed46"
+      },
+      {
+        "name": "kv-store-R520-seed47",
+        "path": "tasks/kv-store-R520-seed47"
+      },
+      {
+        "name": "kv-store-R520-seed48",
+        "path": "tasks/kv-store-R520-seed48"
+      },
+      {
+        "name": "kv-store-R520-seed49",
+        "path": "tasks/kv-store-R520-seed49"
+      },
+      {
+        "name": "kv-store-R8000-seed42",
+        "path": "tasks/kv-store-R8000-seed42"
+      },
+      {
+        "name": "kv-store-R8000-seed43",
+        "path": "tasks/kv-store-R8000-seed43"
+      },
+      {
+        "name": "kv-store-R8000-seed44",
+        "path": "tasks/kv-store-R8000-seed44"
+      },
+      {
+        "name": "kv-store-R8000-seed45",
+        "path": "tasks/kv-store-R8000-seed45"
+      },
+      {
+        "name": "kv-store-R8000-seed46",
+        "path": "tasks/kv-store-R8000-seed46"
+      },
+      {
+        "name": "kv-store-R8000-seed47",
+        "path": "tasks/kv-store-R8000-seed47"
+      },
+      {
+        "name": "kv-store-R8000-seed48",
+        "path": "tasks/kv-store-R8000-seed48"
+      },
+      {
+        "name": "kv-store-R8000-seed49",
+        "path": "tasks/kv-store-R8000-seed49"
+      },
+      {
+        "name": "log-triage-L12800-seed42",
+        "path": "tasks/log-triage-L12800-seed42"
+      },
+      {
+        "name": "log-triage-L12800-seed43",
+        "path": "tasks/log-triage-L12800-seed43"
+      },
+      {
+        "name": "log-triage-L12800-seed44",
+        "path": "tasks/log-triage-L12800-seed44"
+      },
+      {
+        "name": "log-triage-L12800-seed45",
+        "path": "tasks/log-triage-L12800-seed45"
+      },
+      {
+        "name": "log-triage-L12800-seed46",
+        "path": "tasks/log-triage-L12800-seed46"
+      },
+      {
+        "name": "log-triage-L12800-seed47",
+        "path": "tasks/log-triage-L12800-seed47"
+      },
+      {
+        "name": "log-triage-L12800-seed48",
+        "path": "tasks/log-triage-L12800-seed48"
+      },
+      {
+        "name": "log-triage-L12800-seed49",
+        "path": "tasks/log-triage-L12800-seed49"
+      },
+      {
+        "name": "log-triage-L160-seed42",
+        "path": "tasks/log-triage-L160-seed42"
+      },
+      {
+        "name": "log-triage-L160-seed43",
+        "path": "tasks/log-triage-L160-seed43"
+      },
+      {
+        "name": "log-triage-L160-seed44",
+        "path": "tasks/log-triage-L160-seed44"
+      },
+      {
+        "name": "log-triage-L160-seed45",
+        "path": "tasks/log-triage-L160-seed45"
+      },
+      {
+        "name": "log-triage-L160-seed46",
+        "path": "tasks/log-triage-L160-seed46"
+      },
+      {
+        "name": "log-triage-L160-seed47",
+        "path": "tasks/log-triage-L160-seed47"
+      },
+      {
+        "name": "log-triage-L160-seed48",
+        "path": "tasks/log-triage-L160-seed48"
+      },
+      {
+        "name": "log-triage-L160-seed49",
+        "path": "tasks/log-triage-L160-seed49"
+      },
+      {
+        "name": "log-triage-L1600-seed42",
+        "path": "tasks/log-triage-L1600-seed42"
+      },
+      {
+        "name": "log-triage-L1600-seed43",
+        "path": "tasks/log-triage-L1600-seed43"
+      },
+      {
+        "name": "log-triage-L1600-seed44",
+        "path": "tasks/log-triage-L1600-seed44"
+      },
+      {
+        "name": "log-triage-L1600-seed45",
+        "path": "tasks/log-triage-L1600-seed45"
+      },
+      {
+        "name": "log-triage-L1600-seed46",
+        "path": "tasks/log-triage-L1600-seed46"
+      },
+      {
+        "name": "log-triage-L1600-seed47",
+        "path": "tasks/log-triage-L1600-seed47"
+      },
+      {
+        "name": "log-triage-L1600-seed48",
+        "path": "tasks/log-triage-L1600-seed48"
+      },
+      {
+        "name": "log-triage-L1600-seed49",
+        "path": "tasks/log-triage-L1600-seed49"
+      },
+      {
+        "name": "log-triage-L320-seed42",
+        "path": "tasks/log-triage-L320-seed42"
+      },
+      {
+        "name": "log-triage-L320-seed43",
+        "path": "tasks/log-triage-L320-seed43"
+      },
+      {
+        "name": "log-triage-L320-seed44",
+        "path": "tasks/log-triage-L320-seed44"
+      },
+      {
+        "name": "log-triage-L320-seed45",
+        "path": "tasks/log-triage-L320-seed45"
+      },
+      {
+        "name": "log-triage-L320-seed46",
+        "path": "tasks/log-triage-L320-seed46"
+      },
+      {
+        "name": "log-triage-L320-seed47",
+        "path": "tasks/log-triage-L320-seed47"
+      },
+      {
+        "name": "log-triage-L320-seed48",
+        "path": "tasks/log-triage-L320-seed48"
+      },
+      {
+        "name": "log-triage-L320-seed49",
+        "path": "tasks/log-triage-L320-seed49"
+      },
+      {
+        "name": "log-triage-L3200-seed42",
+        "path": "tasks/log-triage-L3200-seed42"
+      },
+      {
+        "name": "log-triage-L3200-seed43",
+        "path": "tasks/log-triage-L3200-seed43"
+      },
+      {
+        "name": "log-triage-L3200-seed44",
+        "path": "tasks/log-triage-L3200-seed44"
+      },
+      {
+        "name": "log-triage-L3200-seed45",
+        "path": "tasks/log-triage-L3200-seed45"
+      },
+      {
+        "name": "log-triage-L3200-seed46",
+        "path": "tasks/log-triage-L3200-seed46"
+      },
+      {
+        "name": "log-triage-L3200-seed47",
+        "path": "tasks/log-triage-L3200-seed47"
+      },
+      {
+        "name": "log-triage-L3200-seed48",
+        "path": "tasks/log-triage-L3200-seed48"
+      },
+      {
+        "name": "log-triage-L3200-seed49",
+        "path": "tasks/log-triage-L3200-seed49"
+      },
+      {
+        "name": "log-triage-L640-seed42",
+        "path": "tasks/log-triage-L640-seed42"
+      },
+      {
+        "name": "log-triage-L640-seed43",
+        "path": "tasks/log-triage-L640-seed43"
+      },
+      {
+        "name": "log-triage-L640-seed44",
+        "path": "tasks/log-triage-L640-seed44"
+      },
+      {
+        "name": "log-triage-L640-seed45",
+        "path": "tasks/log-triage-L640-seed45"
+      },
+      {
+        "name": "log-triage-L640-seed46",
+        "path": "tasks/log-triage-L640-seed46"
+      },
+      {
+        "name": "log-triage-L640-seed47",
+        "path": "tasks/log-triage-L640-seed47"
+      },
+      {
+        "name": "log-triage-L640-seed48",
+        "path": "tasks/log-triage-L640-seed48"
+      },
+      {
+        "name": "log-triage-L640-seed49",
+        "path": "tasks/log-triage-L640-seed49"
+      },
+      {
+        "name": "log-triage-L6400-seed42",
+        "path": "tasks/log-triage-L6400-seed42"
+      },
+      {
+        "name": "log-triage-L6400-seed43",
+        "path": "tasks/log-triage-L6400-seed43"
+      },
+      {
+        "name": "log-triage-L6400-seed44",
+        "path": "tasks/log-triage-L6400-seed44"
+      },
+      {
+        "name": "log-triage-L6400-seed45",
+        "path": "tasks/log-triage-L6400-seed45"
+      },
+      {
+        "name": "log-triage-L6400-seed46",
+        "path": "tasks/log-triage-L6400-seed46"
+      },
+      {
+        "name": "log-triage-L6400-seed47",
+        "path": "tasks/log-triage-L6400-seed47"
+      },
+      {
+        "name": "log-triage-L6400-seed48",
+        "path": "tasks/log-triage-L6400-seed48"
+      },
+      {
+        "name": "log-triage-L6400-seed49",
+        "path": "tasks/log-triage-L6400-seed49"
+      },
+      {
+        "name": "needle-retention-K2-C192-seed42",
+        "path": "tasks/needle-retention-K2-C192-seed42"
+      },
+      {
+        "name": "needle-retention-K2-C192-seed43",
+        "path": "tasks/needle-retention-K2-C192-seed43"
+      },
+      {
+        "name": "needle-retention-K2-C192-seed44",
+        "path": "tasks/needle-retention-K2-C192-seed44"
+      },
+      {
+        "name": "needle-retention-K2-C192-seed45",
+        "path": "tasks/needle-retention-K2-C192-seed45"
+      },
+      {
+        "name": "needle-retention-K2-C192-seed46",
+        "path": "tasks/needle-retention-K2-C192-seed46"
+      },
+      {
+        "name": "needle-retention-K2-C192-seed47",
+        "path": "tasks/needle-retention-K2-C192-seed47"
+      },
+      {
+        "name": "needle-retention-K2-C192-seed48",
+        "path": "tasks/needle-retention-K2-C192-seed48"
+      },
+      {
+        "name": "needle-retention-K2-C192-seed49",
+        "path": "tasks/needle-retention-K2-C192-seed49"
+      },
+      {
+        "name": "needle-retention-K2-C224-seed42",
+        "path": "tasks/needle-retention-K2-C224-seed42"
+      },
+      {
+        "name": "needle-retention-K2-C224-seed43",
+        "path": "tasks/needle-retention-K2-C224-seed43"
+      },
+      {
+        "name": "needle-retention-K2-C224-seed44",
+        "path": "tasks/needle-retention-K2-C224-seed44"
+      },
+      {
+        "name": "needle-retention-K2-C224-seed45",
+        "path": "tasks/needle-retention-K2-C224-seed45"
+      },
+      {
+        "name": "needle-retention-K2-C224-seed46",
+        "path": "tasks/needle-retention-K2-C224-seed46"
+      },
+      {
+        "name": "needle-retention-K2-C224-seed47",
+        "path": "tasks/needle-retention-K2-C224-seed47"
+      },
+      {
+        "name": "needle-retention-K2-C224-seed48",
+        "path": "tasks/needle-retention-K2-C224-seed48"
+      },
+      {
+        "name": "needle-retention-K2-C224-seed49",
+        "path": "tasks/needle-retention-K2-C224-seed49"
+      },
+      {
+        "name": "needle-retention-K4-C24-seed42",
+        "path": "tasks/needle-retention-K4-C24-seed42"
+      },
+      {
+        "name": "needle-retention-K4-C24-seed43",
+        "path": "tasks/needle-retention-K4-C24-seed43"
+      },
+      {
+        "name": "needle-retention-K4-C24-seed44",
+        "path": "tasks/needle-retention-K4-C24-seed44"
+      },
+      {
+        "name": "needle-retention-K4-C24-seed45",
+        "path": "tasks/needle-retention-K4-C24-seed45"
+      },
+      {
+        "name": "needle-retention-K4-C24-seed46",
+        "path": "tasks/needle-retention-K4-C24-seed46"
+      },
+      {
+        "name": "needle-retention-K4-C24-seed47",
+        "path": "tasks/needle-retention-K4-C24-seed47"
+      },
+      {
+        "name": "needle-retention-K4-C24-seed48",
+        "path": "tasks/needle-retention-K4-C24-seed48"
+      },
+      {
+        "name": "needle-retention-K4-C24-seed49",
+        "path": "tasks/needle-retention-K4-C24-seed49"
+      },
+      {
+        "name": "needle-retention-K4-C4-seed42",
+        "path": "tasks/needle-retention-K4-C4-seed42"
+      },
+      {
+        "name": "needle-retention-K4-C4-seed43",
+        "path": "tasks/needle-retention-K4-C4-seed43"
+      },
+      {
+        "name": "needle-retention-K4-C4-seed44",
+        "path": "tasks/needle-retention-K4-C4-seed44"
+      },
+      {
+        "name": "needle-retention-K4-C4-seed45",
+        "path": "tasks/needle-retention-K4-C4-seed45"
+      },
+      {
+        "name": "needle-retention-K4-C4-seed46",
+        "path": "tasks/needle-retention-K4-C4-seed46"
+      },
+      {
+        "name": "needle-retention-K4-C4-seed47",
+        "path": "tasks/needle-retention-K4-C4-seed47"
+      },
+      {
+        "name": "needle-retention-K4-C4-seed48",
+        "path": "tasks/needle-retention-K4-C4-seed48"
+      },
+      {
+        "name": "needle-retention-K4-C4-seed49",
+        "path": "tasks/needle-retention-K4-C4-seed49"
+      },
+      {
+        "name": "needle-retention-K4-C6-seed42",
+        "path": "tasks/needle-retention-K4-C6-seed42"
+      },
+      {
+        "name": "needle-retention-K4-C6-seed43",
+        "path": "tasks/needle-retention-K4-C6-seed43"
+      },
+      {
+        "name": "needle-retention-K4-C6-seed44",
+        "path": "tasks/needle-retention-K4-C6-seed44"
+      },
+      {
+        "name": "needle-retention-K4-C6-seed45",
+        "path": "tasks/needle-retention-K4-C6-seed45"
+      },
+      {
+        "name": "needle-retention-K4-C6-seed46",
+        "path": "tasks/needle-retention-K4-C6-seed46"
+      },
+      {
+        "name": "needle-retention-K4-C6-seed47",
+        "path": "tasks/needle-retention-K4-C6-seed47"
+      },
+      {
+        "name": "needle-retention-K4-C6-seed48",
+        "path": "tasks/needle-retention-K4-C6-seed48"
+      },
+      {
+        "name": "needle-retention-K4-C6-seed49",
+        "path": "tasks/needle-retention-K4-C6-seed49"
+      },
+      {
+        "name": "needle-retention-K4-C8-seed42",
+        "path": "tasks/needle-retention-K4-C8-seed42"
+      },
+      {
+        "name": "needle-retention-K4-C8-seed43",
+        "path": "tasks/needle-retention-K4-C8-seed43"
+      },
+      {
+        "name": "needle-retention-K4-C8-seed44",
+        "path": "tasks/needle-retention-K4-C8-seed44"
+      },
+      {
+        "name": "needle-retention-K4-C8-seed45",
+        "path": "tasks/needle-retention-K4-C8-seed45"
+      },
+      {
+        "name": "needle-retention-K4-C8-seed46",
+        "path": "tasks/needle-retention-K4-C8-seed46"
+      },
+      {
+        "name": "needle-retention-K4-C8-seed47",
+        "path": "tasks/needle-retention-K4-C8-seed47"
+      },
+      {
+        "name": "needle-retention-K4-C8-seed48",
+        "path": "tasks/needle-retention-K4-C8-seed48"
+      },
+      {
+        "name": "needle-retention-K4-C8-seed49",
+        "path": "tasks/needle-retention-K4-C8-seed49"
+      },
+      {
+        "name": "needle-retention-K4-C96-seed42",
+        "path": "tasks/needle-retention-K4-C96-seed42"
+      },
+      {
+        "name": "needle-retention-K4-C96-seed43",
+        "path": "tasks/needle-retention-K4-C96-seed43"
+      },
+      {
+        "name": "needle-retention-K4-C96-seed44",
+        "path": "tasks/needle-retention-K4-C96-seed44"
+      },
+      {
+        "name": "needle-retention-K4-C96-seed45",
+        "path": "tasks/needle-retention-K4-C96-seed45"
+      },
+      {
+        "name": "needle-retention-K4-C96-seed46",
+        "path": "tasks/needle-retention-K4-C96-seed46"
+      },
+      {
+        "name": "needle-retention-K4-C96-seed47",
+        "path": "tasks/needle-retention-K4-C96-seed47"
+      },
+      {
+        "name": "needle-retention-K4-C96-seed48",
+        "path": "tasks/needle-retention-K4-C96-seed48"
+      },
+      {
+        "name": "needle-retention-K4-C96-seed49",
+        "path": "tasks/needle-retention-K4-C96-seed49"
+      },
+      {
+        "name": "needle-retention-K8-C48-seed42",
+        "path": "tasks/needle-retention-K8-C48-seed42"
+      },
+      {
+        "name": "needle-retention-K8-C48-seed43",
+        "path": "tasks/needle-retention-K8-C48-seed43"
+      },
+      {
+        "name": "needle-retention-K8-C48-seed44",
+        "path": "tasks/needle-retention-K8-C48-seed44"
+      },
+      {
+        "name": "needle-retention-K8-C48-seed45",
+        "path": "tasks/needle-retention-K8-C48-seed45"
+      },
+      {
+        "name": "needle-retention-K8-C48-seed46",
+        "path": "tasks/needle-retention-K8-C48-seed46"
+      },
+      {
+        "name": "needle-retention-K8-C48-seed47",
+        "path": "tasks/needle-retention-K8-C48-seed47"
+      },
+      {
+        "name": "needle-retention-K8-C48-seed48",
+        "path": "tasks/needle-retention-K8-C48-seed48"
+      },
+      {
+        "name": "needle-retention-K8-C48-seed49",
+        "path": "tasks/needle-retention-K8-C48-seed49"
+      },
+      {
+        "name": "needle-retention-K8-C60-seed42",
+        "path": "tasks/needle-retention-K8-C60-seed42"
+      },
+      {
+        "name": "needle-retention-K8-C60-seed43",
+        "path": "tasks/needle-retention-K8-C60-seed43"
+      },
+      {
+        "name": "needle-retention-K8-C60-seed44",
+        "path": "tasks/needle-retention-K8-C60-seed44"
+      },
+      {
+        "name": "needle-retention-K8-C60-seed45",
+        "path": "tasks/needle-retention-K8-C60-seed45"
+      },
+      {
+        "name": "needle-retention-K8-C60-seed46",
+        "path": "tasks/needle-retention-K8-C60-seed46"
+      },
+      {
+        "name": "needle-retention-K8-C60-seed47",
+        "path": "tasks/needle-retention-K8-C60-seed47"
+      },
+      {
+        "name": "needle-retention-K8-C60-seed48",
+        "path": "tasks/needle-retention-K8-C60-seed48"
+      },
+      {
+        "name": "needle-retention-K8-C60-seed49",
+        "path": "tasks/needle-retention-K8-C60-seed49"
+      },
+      {
+        "name": "needle-retention-K8-C62-seed42",
+        "path": "tasks/needle-retention-K8-C62-seed42"
+      },
+      {
+        "name": "needle-retention-K8-C62-seed43",
+        "path": "tasks/needle-retention-K8-C62-seed43"
+      },
+      {
+        "name": "needle-retention-K8-C62-seed44",
+        "path": "tasks/needle-retention-K8-C62-seed44"
+      },
+      {
+        "name": "needle-retention-K8-C62-seed45",
+        "path": "tasks/needle-retention-K8-C62-seed45"
+      },
+      {
+        "name": "needle-retention-K8-C62-seed46",
+        "path": "tasks/needle-retention-K8-C62-seed46"
+      },
+      {
+        "name": "needle-retention-K8-C62-seed47",
+        "path": "tasks/needle-retention-K8-C62-seed47"
+      },
+      {
+        "name": "needle-retention-K8-C62-seed48",
+        "path": "tasks/needle-retention-K8-C62-seed48"
+      },
+      {
+        "name": "needle-retention-K8-C62-seed49",
+        "path": "tasks/needle-retention-K8-C62-seed49"
+      },
+      {
+        "name": "sudoku-sketchpad-t100-seed42",
+        "path": "tasks/sudoku-sketchpad-t100-seed42"
+      },
+      {
+        "name": "sudoku-sketchpad-t100-seed43",
+        "path": "tasks/sudoku-sketchpad-t100-seed43"
+      },
+      {
+        "name": "sudoku-sketchpad-t100-seed44",
+        "path": "tasks/sudoku-sketchpad-t100-seed44"
+      },
+      {
+        "name": "sudoku-sketchpad-t100-seed45",
+        "path": "tasks/sudoku-sketchpad-t100-seed45"
+      },
+      {
+        "name": "sudoku-sketchpad-t100-seed46",
+        "path": "tasks/sudoku-sketchpad-t100-seed46"
+      },
+      {
+        "name": "sudoku-sketchpad-t100-seed47",
+        "path": "tasks/sudoku-sketchpad-t100-seed47"
+      },
+      {
+        "name": "sudoku-sketchpad-t100-seed48",
+        "path": "tasks/sudoku-sketchpad-t100-seed48"
+      },
+      {
+        "name": "sudoku-sketchpad-t100-seed49",
+        "path": "tasks/sudoku-sketchpad-t100-seed49"
+      },
+      {
+        "name": "sudoku-sketchpad-t15-seed42",
+        "path": "tasks/sudoku-sketchpad-t15-seed42"
+      },
+      {
+        "name": "sudoku-sketchpad-t15-seed43",
+        "path": "tasks/sudoku-sketchpad-t15-seed43"
+      },
+      {
+        "name": "sudoku-sketchpad-t15-seed44",
+        "path": "tasks/sudoku-sketchpad-t15-seed44"
+      },
+      {
+        "name": "sudoku-sketchpad-t15-seed45",
+        "path": "tasks/sudoku-sketchpad-t15-seed45"
+      },
+      {
+        "name": "sudoku-sketchpad-t15-seed46",
+        "path": "tasks/sudoku-sketchpad-t15-seed46"
+      },
+      {
+        "name": "sudoku-sketchpad-t15-seed47",
+        "path": "tasks/sudoku-sketchpad-t15-seed47"
+      },
+      {
+        "name": "sudoku-sketchpad-t15-seed48",
+        "path": "tasks/sudoku-sketchpad-t15-seed48"
+      },
+      {
+        "name": "sudoku-sketchpad-t15-seed49",
+        "path": "tasks/sudoku-sketchpad-t15-seed49"
+      },
+      {
+        "name": "sudoku-sketchpad-t150-seed42",
+        "path": "tasks/sudoku-sketchpad-t150-seed42"
+      },
+      {
+        "name": "sudoku-sketchpad-t150-seed43",
+        "path": "tasks/sudoku-sketchpad-t150-seed43"
+      },
+      {
+        "name": "sudoku-sketchpad-t150-seed44",
+        "path": "tasks/sudoku-sketchpad-t150-seed44"
+      },
+      {
+        "name": "sudoku-sketchpad-t150-seed45",
+        "path": "tasks/sudoku-sketchpad-t150-seed45"
+      },
+      {
+        "name": "sudoku-sketchpad-t150-seed46",
+        "path": "tasks/sudoku-sketchpad-t150-seed46"
+      },
+      {
+        "name": "sudoku-sketchpad-t150-seed47",
+        "path": "tasks/sudoku-sketchpad-t150-seed47"
+      },
+      {
+        "name": "sudoku-sketchpad-t150-seed48",
+        "path": "tasks/sudoku-sketchpad-t150-seed48"
+      },
+      {
+        "name": "sudoku-sketchpad-t150-seed49",
+        "path": "tasks/sudoku-sketchpad-t150-seed49"
+      },
+      {
+        "name": "sudoku-sketchpad-t30-seed42",
+        "path": "tasks/sudoku-sketchpad-t30-seed42"
+      },
+      {
+        "name": "sudoku-sketchpad-t30-seed43",
+        "path": "tasks/sudoku-sketchpad-t30-seed43"
+      },
+      {
+        "name": "sudoku-sketchpad-t30-seed44",
+        "path": "tasks/sudoku-sketchpad-t30-seed44"
+      },
+      {
+        "name": "sudoku-sketchpad-t30-seed45",
+        "path": "tasks/sudoku-sketchpad-t30-seed45"
+      },
+      {
+        "name": "sudoku-sketchpad-t30-seed46",
+        "path": "tasks/sudoku-sketchpad-t30-seed46"
+      },
+      {
+        "name": "sudoku-sketchpad-t30-seed47",
+        "path": "tasks/sudoku-sketchpad-t30-seed47"
+      },
+      {
+        "name": "sudoku-sketchpad-t30-seed48",
+        "path": "tasks/sudoku-sketchpad-t30-seed48"
+      },
+      {
+        "name": "sudoku-sketchpad-t30-seed49",
+        "path": "tasks/sudoku-sketchpad-t30-seed49"
+      },
+      {
+        "name": "sudoku-sketchpad-t4-seed42",
+        "path": "tasks/sudoku-sketchpad-t4-seed42"
+      },
+      {
+        "name": "sudoku-sketchpad-t4-seed43",
+        "path": "tasks/sudoku-sketchpad-t4-seed43"
+      },
+      {
+        "name": "sudoku-sketchpad-t4-seed44",
+        "path": "tasks/sudoku-sketchpad-t4-seed44"
+      },
+      {
+        "name": "sudoku-sketchpad-t4-seed45",
+        "path": "tasks/sudoku-sketchpad-t4-seed45"
+      },
+      {
+        "name": "sudoku-sketchpad-t4-seed46",
+        "path": "tasks/sudoku-sketchpad-t4-seed46"
+      },
+      {
+        "name": "sudoku-sketchpad-t4-seed47",
+        "path": "tasks/sudoku-sketchpad-t4-seed47"
+      },
+      {
+        "name": "sudoku-sketchpad-t4-seed48",
+        "path": "tasks/sudoku-sketchpad-t4-seed48"
+      },
+      {
+        "name": "sudoku-sketchpad-t4-seed49",
+        "path": "tasks/sudoku-sketchpad-t4-seed49"
+      },
+      {
+        "name": "sudoku-sketchpad-t60-seed42",
+        "path": "tasks/sudoku-sketchpad-t60-seed42"
+      },
+      {
+        "name": "sudoku-sketchpad-t60-seed43",
+        "path": "tasks/sudoku-sketchpad-t60-seed43"
+      },
+      {
+        "name": "sudoku-sketchpad-t60-seed44",
+        "path": "tasks/sudoku-sketchpad-t60-seed44"
+      },
+      {
+        "name": "sudoku-sketchpad-t60-seed45",
+        "path": "tasks/sudoku-sketchpad-t60-seed45"
+      },
+      {
+        "name": "sudoku-sketchpad-t60-seed46",
+        "path": "tasks/sudoku-sketchpad-t60-seed46"
+      },
+      {
+        "name": "sudoku-sketchpad-t60-seed47",
+        "path": "tasks/sudoku-sketchpad-t60-seed47"
+      },
+      {
+        "name": "sudoku-sketchpad-t60-seed48",
+        "path": "tasks/sudoku-sketchpad-t60-seed48"
+      },
+      {
+        "name": "sudoku-sketchpad-t60-seed49",
+        "path": "tasks/sudoku-sketchpad-t60-seed49"
+      },
+      {
+        "name": "sudoku-sketchpad-t8-seed42",
+        "path": "tasks/sudoku-sketchpad-t8-seed42"
+      },
+      {
+        "name": "sudoku-sketchpad-t8-seed43",
+        "path": "tasks/sudoku-sketchpad-t8-seed43"
+      },
+      {
+        "name": "sudoku-sketchpad-t8-seed44",
+        "path": "tasks/sudoku-sketchpad-t8-seed44"
+      },
+      {
+        "name": "sudoku-sketchpad-t8-seed45",
+        "path": "tasks/sudoku-sketchpad-t8-seed45"
+      },
+      {
+        "name": "sudoku-sketchpad-t8-seed46",
+        "path": "tasks/sudoku-sketchpad-t8-seed46"
+      },
+      {
+        "name": "sudoku-sketchpad-t8-seed47",
+        "path": "tasks/sudoku-sketchpad-t8-seed47"
+      },
+      {
+        "name": "sudoku-sketchpad-t8-seed48",
+        "path": "tasks/sudoku-sketchpad-t8-seed48"
+      },
+      {
+        "name": "sudoku-sketchpad-t8-seed49",
+        "path": "tasks/sudoku-sketchpad-t8-seed49"
+      }
+    ]
+  },
+  {
+    "name": "contextbench-kv-store",
+    "version": "1.0",
+    "description": "ContextBench: streamed tasks that exceed the context budget. Family: kv_store.",
+    "tasks": [
+      {
+        "name": "kv-store-R1000-seed42",
+        "path": "tasks/kv-store-R1000-seed42"
+      },
+      {
+        "name": "kv-store-R1000-seed43",
+        "path": "tasks/kv-store-R1000-seed43"
+      },
+      {
+        "name": "kv-store-R1000-seed44",
+        "path": "tasks/kv-store-R1000-seed44"
+      },
+      {
+        "name": "kv-store-R1000-seed45",
+        "path": "tasks/kv-store-R1000-seed45"
+      },
+      {
+        "name": "kv-store-R1000-seed46",
+        "path": "tasks/kv-store-R1000-seed46"
+      },
+      {
+        "name": "kv-store-R1000-seed47",
+        "path": "tasks/kv-store-R1000-seed47"
+      },
+      {
+        "name": "kv-store-R1000-seed48",
+        "path": "tasks/kv-store-R1000-seed48"
+      },
+      {
+        "name": "kv-store-R1000-seed49",
+        "path": "tasks/kv-store-R1000-seed49"
+      },
+      {
+        "name": "kv-store-R130-seed42",
+        "path": "tasks/kv-store-R130-seed42"
+      },
+      {
+        "name": "kv-store-R130-seed43",
+        "path": "tasks/kv-store-R130-seed43"
+      },
+      {
+        "name": "kv-store-R130-seed44",
+        "path": "tasks/kv-store-R130-seed44"
+      },
+      {
+        "name": "kv-store-R130-seed45",
+        "path": "tasks/kv-store-R130-seed45"
+      },
+      {
+        "name": "kv-store-R130-seed46",
+        "path": "tasks/kv-store-R130-seed46"
+      },
+      {
+        "name": "kv-store-R130-seed47",
+        "path": "tasks/kv-store-R130-seed47"
+      },
+      {
+        "name": "kv-store-R130-seed48",
+        "path": "tasks/kv-store-R130-seed48"
+      },
+      {
+        "name": "kv-store-R130-seed49",
+        "path": "tasks/kv-store-R130-seed49"
+      },
+      {
+        "name": "kv-store-R16000-seed42",
+        "path": "tasks/kv-store-R16000-seed42"
+      },
+      {
+        "name": "kv-store-R16000-seed43",
+        "path": "tasks/kv-store-R16000-seed43"
+      },
+      {
+        "name": "kv-store-R16000-seed44",
+        "path": "tasks/kv-store-R16000-seed44"
+      },
+      {
+        "name": "kv-store-R16000-seed45",
+        "path": "tasks/kv-store-R16000-seed45"
+      },
+      {
+        "name": "kv-store-R16000-seed46",
+        "path": "tasks/kv-store-R16000-seed46"
+      },
+      {
+        "name": "kv-store-R16000-seed47",
+        "path": "tasks/kv-store-R16000-seed47"
+      },
+      {
+        "name": "kv-store-R16000-seed48",
+        "path": "tasks/kv-store-R16000-seed48"
+      },
+      {
+        "name": "kv-store-R16000-seed49",
+        "path": "tasks/kv-store-R16000-seed49"
+      },
+      {
+        "name": "kv-store-R2000-seed42",
+        "path": "tasks/kv-store-R2000-seed42"
+      },
+      {
+        "name": "kv-store-R2000-seed43",
+        "path": "tasks/kv-store-R2000-seed43"
+      },
+      {
+        "name": "kv-store-R2000-seed44",
+        "path": "tasks/kv-store-R2000-seed44"
+      },
+      {
+        "name": "kv-store-R2000-seed45",
+        "path": "tasks/kv-store-R2000-seed45"
+      },
+      {
+        "name": "kv-store-R2000-seed46",
+        "path": "tasks/kv-store-R2000-seed46"
+      },
+      {
+        "name": "kv-store-R2000-seed47",
+        "path": "tasks/kv-store-R2000-seed47"
+      },
+      {
+        "name": "kv-store-R2000-seed48",
+        "path": "tasks/kv-store-R2000-seed48"
+      },
+      {
+        "name": "kv-store-R2000-seed49",
+        "path": "tasks/kv-store-R2000-seed49"
+      },
+      {
+        "name": "kv-store-R260-seed42",
+        "path": "tasks/kv-store-R260-seed42"
+      },
+      {
+        "name": "kv-store-R260-seed43",
+        "path": "tasks/kv-store-R260-seed43"
+      },
+      {
+        "name": "kv-store-R260-seed44",
+        "path": "tasks/kv-store-R260-seed44"
+      },
+      {
+        "name": "kv-store-R260-seed45",
+        "path": "tasks/kv-store-R260-seed45"
+      },
+      {
+        "name": "kv-store-R260-seed46",
+        "path": "tasks/kv-store-R260-seed46"
+      },
+      {
+        "name": "kv-store-R260-seed47",
+        "path": "tasks/kv-store-R260-seed47"
+      },
+      {
+        "name": "kv-store-R260-seed48",
+        "path": "tasks/kv-store-R260-seed48"
+      },
+      {
+        "name": "kv-store-R260-seed49",
+        "path": "tasks/kv-store-R260-seed49"
+      },
+      {
+        "name": "kv-store-R4000-seed42",
+        "path": "tasks/kv-store-R4000-seed42"
+      },
+      {
+        "name": "kv-store-R4000-seed43",
+        "path": "tasks/kv-store-R4000-seed43"
+      },
+      {
+        "name": "kv-store-R4000-seed44",
+        "path": "tasks/kv-store-R4000-seed44"
+      },
+      {
+        "name": "kv-store-R4000-seed45",
+        "path": "tasks/kv-store-R4000-seed45"
+      },
+      {
+        "name": "kv-store-R4000-seed46",
+        "path": "tasks/kv-store-R4000-seed46"
+      },
+      {
+        "name": "kv-store-R4000-seed47",
+        "path": "tasks/kv-store-R4000-seed47"
+      },
+      {
+        "name": "kv-store-R4000-seed48",
+        "path": "tasks/kv-store-R4000-seed48"
+      },
+      {
+        "name": "kv-store-R4000-seed49",
+        "path": "tasks/kv-store-R4000-seed49"
+      },
+      {
+        "name": "kv-store-R520-seed42",
+        "path": "tasks/kv-store-R520-seed42"
+      },
+      {
+        "name": "kv-store-R520-seed43",
+        "path": "tasks/kv-store-R520-seed43"
+      },
+      {
+        "name": "kv-store-R520-seed44",
+        "path": "tasks/kv-store-R520-seed44"
+      },
+      {
+        "name": "kv-store-R520-seed45",
+        "path": "tasks/kv-store-R520-seed45"
+      },
+      {
+        "name": "kv-store-R520-seed46",
+        "path": "tasks/kv-store-R520-seed46"
+      },
+      {
+        "name": "kv-store-R520-seed47",
+        "path": "tasks/kv-store-R520-seed47"
+      },
+      {
+        "name": "kv-store-R520-seed48",
+        "path": "tasks/kv-store-R520-seed48"
+      },
+      {
+        "name": "kv-store-R520-seed49",
+        "path": "tasks/kv-store-R520-seed49"
+      },
+      {
+        "name": "kv-store-R8000-seed42",
+        "path": "tasks/kv-store-R8000-seed42"
+      },
+      {
+        "name": "kv-store-R8000-seed43",
+        "path": "tasks/kv-store-R8000-seed43"
+      },
+      {
+        "name": "kv-store-R8000-seed44",
+        "path": "tasks/kv-store-R8000-seed44"
+      },
+      {
+        "name": "kv-store-R8000-seed45",
+        "path": "tasks/kv-store-R8000-seed45"
+      },
+      {
+        "name": "kv-store-R8000-seed46",
+        "path": "tasks/kv-store-R8000-seed46"
+      },
+      {
+        "name": "kv-store-R8000-seed47",
+        "path": "tasks/kv-store-R8000-seed47"
+      },
+      {
+        "name": "kv-store-R8000-seed48",
+        "path": "tasks/kv-store-R8000-seed48"
+      },
+      {
+        "name": "kv-store-R8000-seed49",
+        "path": "tasks/kv-store-R8000-seed49"
+      }
+    ]
+  },
+  {
+    "name": "contextbench-log-triage",
+    "version": "1.0",
+    "description": "ContextBench: streamed tasks that exceed the context budget. Family: log_triage.",
+    "tasks": [
+      {
+        "name": "log-triage-L12800-seed42",
+        "path": "tasks/log-triage-L12800-seed42"
+      },
+      {
+        "name": "log-triage-L12800-seed43",
+        "path": "tasks/log-triage-L12800-seed43"
+      },
+      {
+        "name": "log-triage-L12800-seed44",
+        "path": "tasks/log-triage-L12800-seed44"
+      },
+      {
+        "name": "log-triage-L12800-seed45",
+        "path": "tasks/log-triage-L12800-seed45"
+      },
+      {
+        "name": "log-triage-L12800-seed46",
+        "path": "tasks/log-triage-L12800-seed46"
+      },
+      {
+        "name": "log-triage-L12800-seed47",
+        "path": "tasks/log-triage-L12800-seed47"
+      },
+      {
+        "name": "log-triage-L12800-seed48",
+        "path": "tasks/log-triage-L12800-seed48"
+      },
+      {
+        "name": "log-triage-L12800-seed49",
+        "path": "tasks/log-triage-L12800-seed49"
+      },
+      {
+        "name": "log-triage-L160-seed42",
+        "path": "tasks/log-triage-L160-seed42"
+      },
+      {
+        "name": "log-triage-L160-seed43",
+        "path": "tasks/log-triage-L160-seed43"
+      },
+      {
+        "name": "log-triage-L160-seed44",
+        "path": "tasks/log-triage-L160-seed44"
+      },
+      {
+        "name": "log-triage-L160-seed45",
+        "path": "tasks/log-triage-L160-seed45"
+      },
+      {
+        "name": "log-triage-L160-seed46",
+        "path": "tasks/log-triage-L160-seed46"
+      },
+      {
+        "name": "log-triage-L160-seed47",
+        "path": "tasks/log-triage-L160-seed47"
+      },
+      {
+        "name": "log-triage-L160-seed48",
+        "path": "tasks/log-triage-L160-seed48"
+      },
+      {
+        "name": "log-triage-L160-seed49",
+        "path": "tasks/log-triage-L160-seed49"
+      },
+      {
+        "name": "log-triage-L1600-seed42",
+        "path": "tasks/log-triage-L1600-seed42"
+      },
+      {
+        "name": "log-triage-L1600-seed43",
+        "path": "tasks/log-triage-L1600-seed43"
+      },
+      {
+        "name": "log-triage-L1600-seed44",
+        "path": "tasks/log-triage-L1600-seed44"
+      },
+      {
+        "name": "log-triage-L1600-seed45",
+        "path": "tasks/log-triage-L1600-seed45"
+      },
+      {
+        "name": "log-triage-L1600-seed46",
+        "path": "tasks/log-triage-L1600-seed46"
+      },
+      {
+        "name": "log-triage-L1600-seed47",
+        "path": "tasks/log-triage-L1600-seed47"
+      },
+      {
+        "name": "log-triage-L1600-seed48",
+        "path": "tasks/log-triage-L1600-seed48"
+      },
+      {
+        "name": "log-triage-L1600-seed49",
+        "path": "tasks/log-triage-L1600-seed49"
+      },
+      {
+        "name": "log-triage-L320-seed42",
+        "path": "tasks/log-triage-L320-seed42"
+      },
+      {
+        "name": "log-triage-L320-seed43",
+        "path": "tasks/log-triage-L320-seed43"
+      },
+      {
+        "name": "log-triage-L320-seed44",
+        "path": "tasks/log-triage-L320-seed44"
+      },
+      {
+        "name": "log-triage-L320-seed45",
+        "path": "tasks/log-triage-L320-seed45"
+      },
+      {
+        "name": "log-triage-L320-seed46",
+        "path": "tasks/log-triage-L320-seed46"
+      },
+      {
+        "name": "log-triage-L320-seed47",
+        "path": "tasks/log-triage-L320-seed47"
+      },
+      {
+        "name": "log-triage-L320-seed48",
+        "path": "tasks/log-triage-L320-seed48"
+      },
+      {
+        "name": "log-triage-L320-seed49",
+        "path": "tasks/log-triage-L320-seed49"
+      },
+      {
+        "name": "log-triage-L3200-seed42",
+        "path": "tasks/log-triage-L3200-seed42"
+      },
+      {
+        "name": "log-triage-L3200-seed43",
+        "path": "tasks/log-triage-L3200-seed43"
+      },
+      {
+        "name": "log-triage-L3200-seed44",
+        "path": "tasks/log-triage-L3200-seed44"
+      },
+      {
+        "name": "log-triage-L3200-seed45",
+        "path": "tasks/log-triage-L3200-seed45"
+      },
+      {
+        "name": "log-triage-L3200-seed46",
+        "path": "tasks/log-triage-L3200-seed46"
+      },
+      {
+        "name": "log-triage-L3200-seed47",
+        "path": "tasks/log-triage-L3200-seed47"
+      },
+      {
+        "name": "log-triage-L3200-seed48",
+        "path": "tasks/log-triage-L3200-seed48"
+      },
+      {
+        "name": "log-triage-L3200-seed49",
+        "path": "tasks/log-triage-L3200-seed49"
+      },
+      {
+        "name": "log-triage-L640-seed42",
+        "path": "tasks/log-triage-L640-seed42"
+      },
+      {
+        "name": "log-triage-L640-seed43",
+        "path": "tasks/log-triage-L640-seed43"
+      },
+      {
+        "name": "log-triage-L640-seed44",
+        "path": "tasks/log-triage-L640-seed44"
+      },
+      {
+        "name": "log-triage-L640-seed45",
+        "path": "tasks/log-triage-L640-seed45"
+      },
+      {
+        "name": "log-triage-L640-seed46",
+        "path": "tasks/log-triage-L640-seed46"
+      },
+      {
+        "name": "log-triage-L640-seed47",
+        "path": "tasks/log-triage-L640-seed47"
+      },
+      {
+        "name": "log-triage-L640-seed48",
+        "path": "tasks/log-triage-L640-seed48"
+      },
+      {
+        "name": "log-triage-L640-seed49",
+        "path": "tasks/log-triage-L640-seed49"
+      },
+      {
+        "name": "log-triage-L6400-seed42",
+        "path": "tasks/log-triage-L6400-seed42"
+      },
+      {
+        "name": "log-triage-L6400-seed43",
+        "path": "tasks/log-triage-L6400-seed43"
+      },
+      {
+        "name": "log-triage-L6400-seed44",
+        "path": "tasks/log-triage-L6400-seed44"
+      },
+      {
+        "name": "log-triage-L6400-seed45",
+        "path": "tasks/log-triage-L6400-seed45"
+      },
+      {
+        "name": "log-triage-L6400-seed46",
+        "path": "tasks/log-triage-L6400-seed46"
+      },
+      {
+        "name": "log-triage-L6400-seed47",
+        "path": "tasks/log-triage-L6400-seed47"
+      },
+      {
+        "name": "log-triage-L6400-seed48",
+        "path": "tasks/log-triage-L6400-seed48"
+      },
+      {
+        "name": "log-triage-L6400-seed49",
+        "path": "tasks/log-triage-L6400-seed49"
+      }
+    ]
+  },
+  {
+    "name": "contextbench-needle-retention",
+    "version": "1.0",
+    "description": "ContextBench: streamed tasks that exceed the context budget. Family: needle_retention.",
+    "tasks": [
+      {
+        "name": "needle-retention-K2-C192-seed42",
+        "path": "tasks/needle-retention-K2-C192-seed42"
+      },
+      {
+        "name": "needle-retention-K2-C192-seed43",
+        "path": "tasks/needle-retention-K2-C192-seed43"
+      },
+      {
+        "name": "needle-retention-K2-C192-seed44",
+        "path": "tasks/needle-retention-K2-C192-seed44"
+      },
+      {
+        "name": "needle-retention-K2-C192-seed45",
+        "path": "tasks/needle-retention-K2-C192-seed45"
+      },
+      {
+        "name": "needle-retention-K2-C192-seed46",
+        "path": "tasks/needle-retention-K2-C192-seed46"
+      },
+      {
+        "name": "needle-retention-K2-C192-seed47",
+        "path": "tasks/needle-retention-K2-C192-seed47"
+      },
+      {
+        "name": "needle-retention-K2-C192-seed48",
+        "path": "tasks/needle-retention-K2-C192-seed48"
+      },
+      {
+        "name": "needle-retention-K2-C192-seed49",
+        "path": "tasks/needle-retention-K2-C192-seed49"
+      },
+      {
+        "name": "needle-retention-K2-C224-seed42",
+        "path": "tasks/needle-retention-K2-C224-seed42"
+      },
+      {
+        "name": "needle-retention-K2-C224-seed43",
+        "path": "tasks/needle-retention-K2-C224-seed43"
+      },
+      {
+        "name": "needle-retention-K2-C224-seed44",
+        "path": "tasks/needle-retention-K2-C224-seed44"
+      },
+      {
+        "name": "needle-retention-K2-C224-seed45",
+        "path": "tasks/needle-retention-K2-C224-seed45"
+      },
+      {
+        "name": "needle-retention-K2-C224-seed46",
+        "path": "tasks/needle-retention-K2-C224-seed46"
+      },
+      {
+        "name": "needle-retention-K2-C224-seed47",
+        "path": "tasks/needle-retention-K2-C224-seed47"
+      },
+      {
+        "name": "needle-retention-K2-C224-seed48",
+        "path": "tasks/needle-retention-K2-C224-seed48"
+      },
+      {
+        "name": "needle-retention-K2-C224-seed49",
+        "path": "tasks/needle-retention-K2-C224-seed49"
+      },
+      {
+        "name": "needle-retention-K4-C24-seed42",
+        "path": "tasks/needle-retention-K4-C24-seed42"
+      },
+      {
+        "name": "needle-retention-K4-C24-seed43",
+        "path": "tasks/needle-retention-K4-C24-seed43"
+      },
+      {
+        "name": "needle-retention-K4-C24-seed44",
+        "path": "tasks/needle-retention-K4-C24-seed44"
+      },
+      {
+        "name": "needle-retention-K4-C24-seed45",
+        "path": "tasks/needle-retention-K4-C24-seed45"
+      },
+      {
+        "name": "needle-retention-K4-C24-seed46",
+        "path": "tasks/needle-retention-K4-C24-seed46"
+      },
+      {
+        "name": "needle-retention-K4-C24-seed47",
+        "path": "tasks/needle-retention-K4-C24-seed47"
+      },
+      {
+        "name": "needle-retention-K4-C24-seed48",
+        "path": "tasks/needle-retention-K4-C24-seed48"
+      },
+      {
+        "name": "needle-retention-K4-C24-seed49",
+        "path": "tasks/needle-retention-K4-C24-seed49"
+      },
+      {
+        "name": "needle-retention-K4-C4-seed42",
+        "path": "tasks/needle-retention-K4-C4-seed42"
+      },
+      {
+        "name": "needle-retention-K4-C4-seed43",
+        "path": "tasks/needle-retention-K4-C4-seed43"
+      },
+      {
+        "name": "needle-retention-K4-C4-seed44",
+        "path": "tasks/needle-retention-K4-C4-seed44"
+      },
+      {
+        "name": "needle-retention-K4-C4-seed45",
+        "path": "tasks/needle-retention-K4-C4-seed45"
+      },
+      {
+        "name": "needle-retention-K4-C4-seed46",
+        "path": "tasks/needle-retention-K4-C4-seed46"
+      },
+      {
+        "name": "needle-retention-K4-C4-seed47",
+        "path": "tasks/needle-retention-K4-C4-seed47"
+      },
+      {
+        "name": "needle-retention-K4-C4-seed48",
+        "path": "tasks/needle-retention-K4-C4-seed48"
+      },
+      {
+        "name": "needle-retention-K4-C4-seed49",
+        "path": "tasks/needle-retention-K4-C4-seed49"
+      },
+      {
+        "name": "needle-retention-K4-C6-seed42",
+        "path": "tasks/needle-retention-K4-C6-seed42"
+      },
+      {
+        "name": "needle-retention-K4-C6-seed43",
+        "path": "tasks/needle-retention-K4-C6-seed43"
+      },
+      {
+        "name": "needle-retention-K4-C6-seed44",
+        "path": "tasks/needle-retention-K4-C6-seed44"
+      },
+      {
+        "name": "needle-retention-K4-C6-seed45",
+        "path": "tasks/needle-retention-K4-C6-seed45"
+      },
+      {
+        "name": "needle-retention-K4-C6-seed46",
+        "path": "tasks/needle-retention-K4-C6-seed46"
+      },
+      {
+        "name": "needle-retention-K4-C6-seed47",
+        "path": "tasks/needle-retention-K4-C6-seed47"
+      },
+      {
+        "name": "needle-retention-K4-C6-seed48",
+        "path": "tasks/needle-retention-K4-C6-seed48"
+      },
+      {
+        "name": "needle-retention-K4-C6-seed49",
+        "path": "tasks/needle-retention-K4-C6-seed49"
+      },
+      {
+        "name": "needle-retention-K4-C8-seed42",
+        "path": "tasks/needle-retention-K4-C8-seed42"
+      },
+      {
+        "name": "needle-retention-K4-C8-seed43",
+        "path": "tasks/needle-retention-K4-C8-seed43"
+      },
+      {
+        "name": "needle-retention-K4-C8-seed44",
+        "path": "tasks/needle-retention-K4-C8-seed44"
+      },
+      {
+        "name": "needle-retention-K4-C8-seed45",
+        "path": "tasks/needle-retention-K4-C8-seed45"
+      },
+      {
+        "name": "needle-retention-K4-C8-seed46",
+        "path": "tasks/needle-retention-K4-C8-seed46"
+      },
+      {
+        "name": "needle-retention-K4-C8-seed47",
+        "path": "tasks/needle-retention-K4-C8-seed47"
+      },
+      {
+        "name": "needle-retention-K4-C8-seed48",
+        "path": "tasks/needle-retention-K4-C8-seed48"
+      },
+      {
+        "name": "needle-retention-K4-C8-seed49",
+        "path": "tasks/needle-retention-K4-C8-seed49"
+      },
+      {
+        "name": "needle-retention-K4-C96-seed42",
+        "path": "tasks/needle-retention-K4-C96-seed42"
+      },
+      {
+        "name": "needle-retention-K4-C96-seed43",
+        "path": "tasks/needle-retention-K4-C96-seed43"
+      },
+      {
+        "name": "needle-retention-K4-C96-seed44",
+        "path": "tasks/needle-retention-K4-C96-seed44"
+      },
+      {
+        "name": "needle-retention-K4-C96-seed45",
+        "path": "tasks/needle-retention-K4-C96-seed45"
+      },
+      {
+        "name": "needle-retention-K4-C96-seed46",
+        "path": "tasks/needle-retention-K4-C96-seed46"
+      },
+      {
+        "name": "needle-retention-K4-C96-seed47",
+        "path": "tasks/needle-retention-K4-C96-seed47"
+      },
+      {
+        "name": "needle-retention-K4-C96-seed48",
+        "path": "tasks/needle-retention-K4-C96-seed48"
+      },
+      {
+        "name": "needle-retention-K4-C96-seed49",
+        "path": "tasks/needle-retention-K4-C96-seed49"
+      },
+      {
+        "name": "needle-retention-K8-C48-seed42",
+        "path": "tasks/needle-retention-K8-C48-seed42"
+      },
+      {
+        "name": "needle-retention-K8-C48-seed43",
+        "path": "tasks/needle-retention-K8-C48-seed43"
+      },
+      {
+        "name": "needle-retention-K8-C48-seed44",
+        "path": "tasks/needle-retention-K8-C48-seed44"
+      },
+      {
+        "name": "needle-retention-K8-C48-seed45",
+        "path": "tasks/needle-retention-K8-C48-seed45"
+      },
+      {
+        "name": "needle-retention-K8-C48-seed46",
+        "path": "tasks/needle-retention-K8-C48-seed46"
+      },
+      {
+        "name": "needle-retention-K8-C48-seed47",
+        "path": "tasks/needle-retention-K8-C48-seed47"
+      },
+      {
+        "name": "needle-retention-K8-C48-seed48",
+        "path": "tasks/needle-retention-K8-C48-seed48"
+      },
+      {
+        "name": "needle-retention-K8-C48-seed49",
+        "path": "tasks/needle-retention-K8-C48-seed49"
+      },
+      {
+        "name": "needle-retention-K8-C60-seed42",
+        "path": "tasks/needle-retention-K8-C60-seed42"
+      },
+      {
+        "name": "needle-retention-K8-C60-seed43",
+        "path": "tasks/needle-retention-K8-C60-seed43"
+      },
+      {
+        "name": "needle-retention-K8-C60-seed44",
+        "path": "tasks/needle-retention-K8-C60-seed44"
+      },
+      {
+        "name": "needle-retention-K8-C60-seed45",
+        "path": "tasks/needle-retention-K8-C60-seed45"
+      },
+      {
+        "name": "needle-retention-K8-C60-seed46",
+        "path": "tasks/needle-retention-K8-C60-seed46"
+      },
+      {
+        "name": "needle-retention-K8-C60-seed47",
+        "path": "tasks/needle-retention-K8-C60-seed47"
+      },
+      {
+        "name": "needle-retention-K8-C60-seed48",
+        "path": "tasks/needle-retention-K8-C60-seed48"
+      },
+      {
+        "name": "needle-retention-K8-C60-seed49",
+        "path": "tasks/needle-retention-K8-C60-seed49"
+      },
+      {
+        "name": "needle-retention-K8-C62-seed42",
+        "path": "tasks/needle-retention-K8-C62-seed42"
+      },
+      {
+        "name": "needle-retention-K8-C62-seed43",
+        "path": "tasks/needle-retention-K8-C62-seed43"
+      },
+      {
+        "name": "needle-retention-K8-C62-seed44",
+        "path": "tasks/needle-retention-K8-C62-seed44"
+      },
+      {
+        "name": "needle-retention-K8-C62-seed45",
+        "path": "tasks/needle-retention-K8-C62-seed45"
+      },
+      {
+        "name": "needle-retention-K8-C62-seed46",
+        "path": "tasks/needle-retention-K8-C62-seed46"
+      },
+      {
+        "name": "needle-retention-K8-C62-seed47",
+        "path": "tasks/needle-retention-K8-C62-seed47"
+      },
+      {
+        "name": "needle-retention-K8-C62-seed48",
+        "path": "tasks/needle-retention-K8-C62-seed48"
+      },
+      {
+        "name": "needle-retention-K8-C62-seed49",
+        "path": "tasks/needle-retention-K8-C62-seed49"
+      }
+    ]
+  },
+  {
+    "name": "contextbench-sudoku-sketchpad",
+    "version": "1.0",
+    "description": "ContextBench: streamed tasks that exceed the context budget. Family: sudoku_sketchpad.",
+    "tasks": [
+      {
+        "name": "sudoku-sketchpad-t100-seed42",
+        "path": "tasks/sudoku-sketchpad-t100-seed42"
+      },
+      {
+        "name": "sudoku-sketchpad-t100-seed43",
+        "path": "tasks/sudoku-sketchpad-t100-seed43"
+      },
+      {
+        "name": "sudoku-sketchpad-t100-seed44",
+        "path": "tasks/sudoku-sketchpad-t100-seed44"
+      },
+      {
+        "name": "sudoku-sketchpad-t100-seed45",
+        "path": "tasks/sudoku-sketchpad-t100-seed45"
+      },
+      {
+        "name": "sudoku-sketchpad-t100-seed46",
+        "path": "tasks/sudoku-sketchpad-t100-seed46"
+      },
+      {
+        "name": "sudoku-sketchpad-t100-seed47",
+        "path": "tasks/sudoku-sketchpad-t100-seed47"
+      },
+      {
+        "name": "sudoku-sketchpad-t100-seed48",
+        "path": "tasks/sudoku-sketchpad-t100-seed48"
+      },
+      {
+        "name": "sudoku-sketchpad-t100-seed49",
+        "path": "tasks/sudoku-sketchpad-t100-seed49"
+      },
+      {
+        "name": "sudoku-sketchpad-t15-seed42",
+        "path": "tasks/sudoku-sketchpad-t15-seed42"
+      },
+      {
+        "name": "sudoku-sketchpad-t15-seed43",
+        "path": "tasks/sudoku-sketchpad-t15-seed43"
+      },
+      {
+        "name": "sudoku-sketchpad-t15-seed44",
+        "path": "tasks/sudoku-sketchpad-t15-seed44"
+      },
+      {
+        "name": "sudoku-sketchpad-t15-seed45",
+        "path": "tasks/sudoku-sketchpad-t15-seed45"
+      },
+      {
+        "name": "sudoku-sketchpad-t15-seed46",
+        "path": "tasks/sudoku-sketchpad-t15-seed46"
+      },
+      {
+        "name": "sudoku-sketchpad-t15-seed47",
+        "path": "tasks/sudoku-sketchpad-t15-seed47"
+      },
+      {
+        "name": "sudoku-sketchpad-t15-seed48",
+        "path": "tasks/sudoku-sketchpad-t15-seed48"
+      },
+      {
+        "name": "sudoku-sketchpad-t15-seed49",
+        "path": "tasks/sudoku-sketchpad-t15-seed49"
+      },
+      {
+        "name": "sudoku-sketchpad-t150-seed42",
+        "path": "tasks/sudoku-sketchpad-t150-seed42"
+      },
+      {
+        "name": "sudoku-sketchpad-t150-seed43",
+        "path": "tasks/sudoku-sketchpad-t150-seed43"
+      },
+      {
+        "name": "sudoku-sketchpad-t150-seed44",
+        "path": "tasks/sudoku-sketchpad-t150-seed44"
+      },
+      {
+        "name": "sudoku-sketchpad-t150-seed45",
+        "path": "tasks/sudoku-sketchpad-t150-seed45"
+      },
+      {
+        "name": "sudoku-sketchpad-t150-seed46",
+        "path": "tasks/sudoku-sketchpad-t150-seed46"
+      },
+      {
+        "name": "sudoku-sketchpad-t150-seed47",
+        "path": "tasks/sudoku-sketchpad-t150-seed47"
+      },
+      {
+        "name": "sudoku-sketchpad-t150-seed48",
+        "path": "tasks/sudoku-sketchpad-t150-seed48"
+      },
+      {
+        "name": "sudoku-sketchpad-t150-seed49",
+        "path": "tasks/sudoku-sketchpad-t150-seed49"
+      },
+      {
+        "name": "sudoku-sketchpad-t30-seed42",
+        "path": "tasks/sudoku-sketchpad-t30-seed42"
+      },
+      {
+        "name": "sudoku-sketchpad-t30-seed43",
+        "path": "tasks/sudoku-sketchpad-t30-seed43"
+      },
+      {
+        "name": "sudoku-sketchpad-t30-seed44",
+        "path": "tasks/sudoku-sketchpad-t30-seed44"
+      },
+      {
+        "name": "sudoku-sketchpad-t30-seed45",
+        "path": "tasks/sudoku-sketchpad-t30-seed45"
+      },
+      {
+        "name": "sudoku-sketchpad-t30-seed46",
+        "path": "tasks/sudoku-sketchpad-t30-seed46"
+      },
+      {
+        "name": "sudoku-sketchpad-t30-seed47",
+        "path": "tasks/sudoku-sketchpad-t30-seed47"
+      },
+      {
+        "name": "sudoku-sketchpad-t30-seed48",
+        "path": "tasks/sudoku-sketchpad-t30-seed48"
+      },
+      {
+        "name": "sudoku-sketchpad-t30-seed49",
+        "path": "tasks/sudoku-sketchpad-t30-seed49"
+      },
+      {
+        "name": "sudoku-sketchpad-t4-seed42",
+        "path": "tasks/sudoku-sketchpad-t4-seed42"
+      },
+      {
+        "name": "sudoku-sketchpad-t4-seed43",
+        "path": "tasks/sudoku-sketchpad-t4-seed43"
+      },
+      {
+        "name": "sudoku-sketchpad-t4-seed44",
+        "path": "tasks/sudoku-sketchpad-t4-seed44"
+      },
+      {
+        "name": "sudoku-sketchpad-t4-seed45",
+        "path": "tasks/sudoku-sketchpad-t4-seed45"
+      },
+      {
+        "name": "sudoku-sketchpad-t4-seed46",
+        "path": "tasks/sudoku-sketchpad-t4-seed46"
+      },
+      {
+        "name": "sudoku-sketchpad-t4-seed47",
+        "path": "tasks/sudoku-sketchpad-t4-seed47"
+      },
+      {
+        "name": "sudoku-sketchpad-t4-seed48",
+        "path": "tasks/sudoku-sketchpad-t4-seed48"
+      },
+      {
+        "name": "sudoku-sketchpad-t4-seed49",
+        "path": "tasks/sudoku-sketchpad-t4-seed49"
+      },
+      {
+        "name": "sudoku-sketchpad-t60-seed42",
+        "path": "tasks/sudoku-sketchpad-t60-seed42"
+      },
+      {
+        "name": "sudoku-sketchpad-t60-seed43",
+        "path": "tasks/sudoku-sketchpad-t60-seed43"
+      },
+      {
+        "name": "sudoku-sketchpad-t60-seed44",
+        "path": "tasks/sudoku-sketchpad-t60-seed44"
+      },
+      {
+        "name": "sudoku-sketchpad-t60-seed45",
+        "path": "tasks/sudoku-sketchpad-t60-seed45"
+      },
+      {
+        "name": "sudoku-sketchpad-t60-seed46",
+        "path": "tasks/sudoku-sketchpad-t60-seed46"
+      },
+      {
+        "name": "sudoku-sketchpad-t60-seed47",
+        "path": "tasks/sudoku-sketchpad-t60-seed47"
+      },
+      {
+        "name": "sudoku-sketchpad-t60-seed48",
+        "path": "tasks/sudoku-sketchpad-t60-seed48"
+      },
+      {
+        "name": "sudoku-sketchpad-t60-seed49",
+        "path": "tasks/sudoku-sketchpad-t60-seed49"
+      },
+      {
+        "name": "sudoku-sketchpad-t8-seed42",
+        "path": "tasks/sudoku-sketchpad-t8-seed42"
+      },
+      {
+        "name": "sudoku-sketchpad-t8-seed43",
+        "path": "tasks/sudoku-sketchpad-t8-seed43"
+      },
+      {
+        "name": "sudoku-sketchpad-t8-seed44",
+        "path": "tasks/sudoku-sketchpad-t8-seed44"
+      },
+      {
+        "name": "sudoku-sketchpad-t8-seed45",
+        "path": "tasks/sudoku-sketchpad-t8-seed45"
+      },
+      {
+        "name": "sudoku-sketchpad-t8-seed46",
+        "path": "tasks/sudoku-sketchpad-t8-seed46"
+      },
+      {
+        "name": "sudoku-sketchpad-t8-seed47",
+        "path": "tasks/sudoku-sketchpad-t8-seed47"
+      },
+      {
+        "name": "sudoku-sketchpad-t8-seed48",
+        "path": "tasks/sudoku-sketchpad-t8-seed48"
+      },
+      {
+        "name": "sudoku-sketchpad-t8-seed49",
+        "path": "tasks/sudoku-sketchpad-t8-seed49"
+      }
+    ]
+  }
+]

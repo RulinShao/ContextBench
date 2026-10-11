@@ -1,0 +1,14 @@
+{
+  "task_family": "needle_retention",
+  "seed": 44,
+  "chunks": 4,
+  "needles_per_chunk": 4,
+  "filler_lines_per_chunk": 140,
+  "words_per_line": 10,
+  "n_answer_lines": 16,
+  "n_source_lines": 576,
+  "alpha_nominal": 0.027591294725193654,
+  "approx_input_tokens": 13555,
+  "approx_kept_tokens": 374,
+  "approx_chunk_tokens": 3388
+}

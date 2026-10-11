@@ -1,0 +1,38 @@
+{
+  "verdict": "PASS",
+  "feasible": true,
+  "task_family": "needle_retention",
+  "checks": {
+    "pressure": {
+      "pass": true,
+      "detail": "streamed 23981 / budget 32768 = P 0.73 (sub-budget (expected))"
+    },
+    "small_ops": {
+      "pass": true,
+      "detail": "max op 4040 tok (cap 5529 = usable 30720 / 5 x 0.9)"
+    },
+    "retained": {
+      "pass": true,
+      "detail": "retained 650 tok [all needle lines verbatim] (cap 13824 = usable / 2 x 0.9)"
+    },
+    "horizon": {
+      "pass": true,
+      "detail": "6 ops (need >= 4)"
+    }
+  },
+  "measured": {
+    "P": 0.732,
+    "streamed_tokens": 23981,
+    "max_op_tokens": 4040,
+    "retained_tokens": 650,
+    "n_ops": 6
+  },
+  "budget": 32768,
+  "reserve": 2048,
+  "usable_tokens": 30720,
+  "cap_op_tokens": 5529,
+  "cap_retained_tokens": 13824,
+  "regime": "sub-budget",
+  "token_method": "tiktoken:o200k_base",
+  "validator_sha16": "ad7a9a4d10534c47"
+}

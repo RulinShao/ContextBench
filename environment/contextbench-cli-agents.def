@@ -1,0 +1,37 @@
+# Task image with the installed CLI agents preinstalled (codex, mini-swe-agent), for
+# Singularity/Apptainer backends whose writable overlay is too small for Harbor's
+# in-trial installs (a default --writable-tmpfs is 64 MB).
+#
+#   apptainer build --fakeroot contextbench-cli-agents.sif contextbench-cli-agents.def
+#
+# Everything in contextbench.def, plus: Node 22 and @openai/codex on PATH, and
+# mini-swe-agent in /opt/mswea (its CLI linked into /usr/local/bin). Versions are
+# pinned here so a trial records exactly what ran.
+Bootstrap: docker
+From: python@sha256:ed86c82274b3c69b52fb5820f358f0bd7df0b603332063cb5c6e32bd220c3e6e
+
+%post
+    set -e
+    mkdir -p /app /logs
+    chmod 777 /logs
+    ln -sf /usr/local/bin/python3 /usr/bin/python3
+    ln -sf /usr/local/bin/python  /usr/bin/python
+    python3 -m venv /opt/harbor-server
+    /opt/harbor-server/bin/pip install --no-cache-dir -q uvicorn fastapi
+    apt-get update -qq
+    apt-get install -y -qq tmux curl git ripgrep xz-utils ca-certificates
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+    pip3 install --no-cache-dir -q asciinema || true
+    chmod -R a+rX /opt/harbor-server
+
+    NODE_VERSION=v22.23.3
+    curl -fsSL "https://nodejs.org/dist/${NODE_VERSION}/node-${NODE_VERSION}-linux-x64.tar.xz" \
+        | tar -xJ -C /usr/local --strip-components=1
+    npm install -g @openai/codex@0.157.1
+    codex --version
+
+    python3 -m venv /opt/mswea
+    /opt/mswea/bin/pip install --no-cache-dir -q "mini-swe-agent==2.4.6"
+    ln -sf /opt/mswea/bin/mini-swe-agent /usr/local/bin/mini-swe-agent
+    /opt/mswea/bin/python -c "import minisweagent; print('mini-swe-agent', minisweagent.__version__)"
+    chmod -R a+rX /opt/mswea /usr/local/lib/node_modules

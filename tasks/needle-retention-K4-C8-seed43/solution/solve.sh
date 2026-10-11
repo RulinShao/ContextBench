@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# Oracle: writes every gold answer into the agent log dir as a final report.
+# Graded as graded_from=final_report, never comparable to a context grade.
+set -euo pipefail
+mkdir -p /logs/agent
+cat > /logs/agent/final_report.txt <<'CONTEXTBENCH_ORACLE_EOF'
+kept 4 needle line(s).
+kept 8 needle line(s).
+kept 12 needle line(s).
+kept 16 needle line(s).
+kept 20 needle line(s).
+kept 24 needle line(s).
+kept 28 needle line(s).
+<<<NEEDLES BEGIN>>>
+[n00000i00#8c7601ed] crimson willow copper auburn meadow marble nimbus verdant copper spruce.
+[n00000i01#2f72e3f9] orbit marble trellis falcon trellis lantern indigo pewter boulder nimbus.
+[n00000i02#b13cbdab] trellis cinder saffron auburn pewter cedar cobalt crimson cinder orbit.
+[n00000i03#5c63c5b6] onyx orbit cedar meadow orbit cobalt indigo onyx falcon meadow.
+[n00001i00#ab458110] crimson harbor nimbus verdant willow boulder lantern thistle boulder meadow.
+[n00001i01#3abfeabc] lantern boulder onyx pewter harbor falcon onyx verdant lantern cedar.
+[n00001i02#460c9fec] zebra thistle lantern onyx orbit trellis lantern crimson auburn copper.
+[n00001i03#bcd066e8] saffron cobalt marble lantern falcon pewter thistle lantern quartz boulder.
+[n00002i00#e7863f2f] falcon saffron crimson nimbus spruce quartz copper boulder trellis willow.
+[n00002i01#f95d8610] crimson harbor marble trellis nimbus nimbus zebra harbor copper meadow.
+[n00002i02#f8ec443c] cinder cobalt cobalt nimbus indigo crimson quartz falcon auburn thistle.
+[n00002i03#975ce71d] falcon saffron glacier thistle saffron cinder copper thistle zebra crimson.
+[n00003i00#451cf54f] lantern marble indigo trellis boulder marble meadow harbor falcon cedar.
+[n00003i01#528025e3] cobalt quartz cobalt trellis crimson cedar onyx marble boulder trellis.
+[n00003i02#8ae2e3d9] lantern marble ember cedar indigo harbor copper pewter verdant glacier.
+[n00003i03#28666c2d] auburn crimson indigo crimson ember quartz saffron meadow orbit meadow.
+[n00004i00#18ef40b7] verdant pewter indigo auburn thistle cedar zebra lattice falcon meadow.
+[n00004i01#d90d9a9c] thistle nimbus verdant marble cinder spruce willow thistle boulder lattice.
+[n00004i02#cbb1cb0e] cedar falcon verdant spruce cinder saffron indigo cinder cedar nimbus.
+[n00004i03#3b1a052d] quartz copper auburn ember cinder copper saffron boulder saffron spruce.
+[n00005i00#9b3df9ee] harbor onyx glacier saffron cinder willow nimbus orbit indigo zebra.
+[n00005i01#1f7e4ee5] verdant glacier copper trellis lattice spruce lantern trellis nimbus crimson.
+[n00005i02#42211b14] crimson cobalt meadow ember saffron quartz cedar crimson saffron trellis.
+[n00005i03#b08bdde9] crimson saffron zebra zebra thistle cobalt marble saffron cinder boulder.
+[n00006i00#a373480d] auburn lattice saffron ember boulder copper thistle thistle cobalt pewter.
+[n00006i01#d4f881fe] falcon trellis nimbus saffron copper falcon harbor lantern lattice ember.
+[n00006i02#b1bda94c] boulder falcon saffron harbor crimson harbor boulder pewter verdant crimson.
+[n00006i03#6be049c8] harbor cobalt harbor willow lantern crimson cedar meadow thistle meadow.
+[n00007i00#9d5b1252] boulder harbor pewter nimbus glacier quartz quartz cobalt lantern saffron.
+[n00007i01#50a7f6f9] crimson verdant spruce pewter quartz crimson spruce trellis nimbus marble.
+[n00007i02#b922d372] zebra zebra saffron lantern thistle falcon falcon marble harbor trellis.
+[n00007i03#18eb98c7] thistle spruce thistle auburn glacier verdant marble saffron verdant nimbus.
+<<<NEEDLES END>>>
+CONTEXTBENCH_ORACLE_EOF

@@ -89,10 +89,22 @@ behaviour, not of the benchmark. The wall applies to the turns of the main conve
 a side call an agent makes to compact its own context (a summarization request) is
 recorded but does not end the run, even when it exceeds the budget.
 
-Graders read, in order of preference, the per-turn `context_snapshots/turn-*.json`
-(the paper metric), an ATIF `trajectory.json`, or the final report -- and record
-which one they used as `graded_from`, so numbers from different sources are never
-compared by accident.
+Graders read the per-turn context snapshots the harness wrote (`context_snapshots/turn-*.json`)
+and nothing else: there is no fallback to a trajectory or a report for a scored run.
+A snapshot is checked against the task's budget (`contextbench_budget_tokens` in
+`task.toml`): it must record that budget, and no snapshot may hold more tokens than the
+budget, except the context that hit the wall at the very end of a `budget_wall` run.
+The grader recounts every snapshot and records the budget in `reward.json`
+(`budget_tokens`, `reserve_tokens`).
+
+ANSWER blocks (kv store, log triage) are read only from what the agent produced:
+assistant messages and tool output, never the instruction or the ops. Each question has
+one answer, the **last** block for it (latest snapshot first, then the later message in
+that snapshot), so an agent may correct an answer and a later wrong answer replaces a
+right one. A kv value and a log lookup must equal the gold after whitespace
+normalization (a log message's trailing `#hex` tag is optional); a count must state
+exactly one number. Needle retention reads the whole final snapshot and the sudoku
+grader every message of every snapshot, as before.
 
 An answer is credited once it appears in any snapshot. A Harbor agent snapshots the
 context it is about to send to the model, and it also snapshots each turn's context, tool
@@ -113,7 +125,8 @@ them straight from GitHub with no local build:
 ```bash
 harbor jobs start --repo RulinShao/ContextBench -d contextbench \
     -a contextbench.harbor.agents:Terminus2Stream -m openai/MODEL \
-    --agent-kwarg api_base=http://HOST:PORT/v1
+    --agent-kwarg api_base=http://HOST:PORT/v1 \
+    --verifier contextbench.harbor.verifiers:ContextBenchVerifier
 ```
 
 `-d contextbench-<family>` (for example `contextbench-kv-store`) selects one family and
@@ -125,9 +138,11 @@ contextbench package --all --config clm_exp/configs/paper.yaml --out-dir cb_task
 
 harbor trials start -p cb_tasks/kv-store-R1000-seed42 \
     -a contextbench.harbor.agents:Terminus2Stream -m openai/MODEL \
-    --agent-kwarg api_base=http://HOST:PORT/v1
+    --agent-kwarg api_base=http://HOST:PORT/v1 \
+    --verifier contextbench.harbor.verifiers:ContextBenchVerifier
 harbor jobs start -p cb_tasks/ -a contextbench.harbor.wrap:CodexStream -m openai/MODEL \
-    --agent-kwarg api_base=http://HOST:PORT/v1 -n 8
+    --agent-kwarg api_base=http://HOST:PORT/v1 -n 8 \
+    --verifier contextbench.harbor.verifiers:ContextBenchVerifier
 ```
 
 The same tasks are published as the Hugging Face dataset
@@ -141,10 +156,45 @@ levels file (`pip install -e '.[hf]'`):
 contextbench export-hf --config clm_exp/configs/paper.yaml --repo-id context-language-model/ContextBench --out-dir hf/
 ```
 
-No verifier flag is needed: each task grades itself after the agent has finished
-(`tests/test.sh` runs a copy of the graders shipped in `tests/_cb/`, standard library
-only). For an image without `python3`, grade on the host with
-`--verifier-import-path contextbench.harbor.verifiers:ContextBenchVerifier`.
+**Grading is host-side only.** Every run needs
+`--verifier contextbench.harbor.verifiers:ContextBenchVerifier`. The harness writes the
+context snapshots to `<trial_dir>/contextbench_harness/`, a sibling of the `agent/`
+directory that Harbor does not mount into the container, and the verifier grades them on
+the host. Without the flag Harbor runs the task's `tests/test.sh`, which grades nothing:
+it deletes any reward file found in `/logs/verifier` and exits non-zero, so the trial has
+no reward. A run that cannot be graded (no snapshots, a snapshot file the harness did not
+write, a changed or unreadable one, a manifest that was never closed, a budget mismatch)
+is **invalid**: the verifier writes `contextbench_result.json` with the reason, no
+`reward.json`, and fails, instead of reporting a zero.
+
+To check a task, its gold and its grader with the oracle solution, run Harbor's oracle
+agent with the verifier's oracle mode, which refuses any trial whose `config.json` does
+not name that agent:
+
+```bash
+harbor trials start -p cb_tasks/kv-store-R1000-seed42 -a oracle \
+    --verifier contextbench.harbor.verifiers:ContextBenchVerifier --verifier-kwarg mode=oracle
+```
+
+`contextbench grade --task-dir <task> --run-dir <trial_dir>` grades a finished trial
+offline (`--mode legacy --run-dir <trial_dir>/agent` re-grades a trial recorded before
+the snapshot root existed, with the same checks minus the manifest), and so does the
+copy of the graders in each task's `tests/_cb/`, standard library only:
+`python3 -I -c 'import sys; sys.path.insert(0, sys.argv.pop(1)); from contextbench.harbor.reward import main; sys.exit(main())' <task>/tests/_cb --run-dir <trial_dir> --task-dir <task> --out-dir <dir>`.
+
+**What the grader assumes.** The agent controls its container, including `/logs/agent`
+and `/logs/verifier`; it does not control the host. The snapshots are written by the
+harness process on the host, outside the container, and the grader accepts only files
+listed with their sha256 in the harness's closed `snapshot_manifest.jsonl`. For the agents
+that run inside the container (`CodexStream`, `MiniSweAgentStream`) the snapshots are
+built from the session state the CLI keeps in `/logs/agent`; that state is the context the
+CLI resumes from, and a model that rewrites it changes its own context, which the
+snapshots then record. Budget, reserve and gold come from the task directory on the host.
+The tasks set `network_mode = "public"` (Harbor's default) explicitly: agents that run in
+the container reach their model endpoint from it, and Singularity/Apptainer cannot
+enforce anything stricter. The gold and the oracle solution are public in this
+repository; where the provider can enforce it, run host-side harnesses with
+`network_mode = "no-network"`.
 
 **Container image.** Tasks use `python:3.12-slim`, which works as is on Docker
 (`-e docker`). For Singularity/Apptainer (`-e singularity`), build the image from
@@ -197,8 +247,12 @@ class MyAgent(CBStreamMixin, BaseAgent):
         self.cb_finish(None, messages)
 ```
 
-`cb_over_budget` also writes the per-turn context snapshot the graders read.
-`ContextBenchAgent` is built exactly this way.
+`cb_over_budget` also writes the per-turn context snapshot the graders read, into the
+host-only snapshot root; `cb_finish` closes its manifest (a run whose manifest is never
+closed is invalid). `ContextBenchAgent` is built exactly this way. A harness that keeps
+its own message list but not this mixin's loop must still write its snapshots through
+`contextbench.tokens.SnapshotLog(harness_dir_for(self.logs_dir))`; snapshots written
+anywhere else are not graded.
 
 ## Documentation
 
@@ -207,6 +261,8 @@ class MyAgent(CBStreamMixin, BaseAgent):
   the original benchmark code, and the rulings behind those differences.
 - [`docs/HARBOR_SMOKE.md`](docs/HARBOR_SMOKE.md) -- end-to-end Harbor trials with a real
   model, and an audit of their traces.
+- [`docs/MULTIFRAME_GRADING.md`](docs/MULTIFRAME_GRADING.md) -- a proposal (not
+  implemented) for timing-aware needle and sudoku rewards.
 
 ## Development
 

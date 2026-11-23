@@ -74,12 +74,13 @@ It is kept strictly separate from the paper metric. A result records
 `mode: "final_report"` next to `graded_from: "final_report"`, and the two modes are
 never averaged: a line an agent *reports* is weaker evidence than a line still
 *present* in its context, because a reporting agent could have read it back from
-anywhere.
+anywhere. It is used only for the oracle solution (`mode=oracle`, see "Grading
+sources and checks" below), never for an agent.
 
-**Snapshots are preferred over the trajectory.** The source needle grader read only
-`trajectory.json`. This package prefers the last per-turn snapshot when snapshots
-exist, then the trajectory, then the report. The parity test confirms the two agree
-on the same trajectory file.
+**Snapshots instead of the trajectory.** The source needle grader read only
+`trajectory.json`. This package reads the last per-turn snapshot the harness wrote;
+the trajectory is not a grading source. The parity test confirms the two agree on the
+same final context.
 
 ## Graders
 
@@ -87,8 +88,9 @@ on the same trajectory file.
 container runtime's verifier base and expose an `async verify()` that reads gold and
 the trajectory through runtime path helpers. Here each grader is a plain class with
 `grade(run_dir, gold) -> dict`, and the three readers live in
-`contextbench/graders/base.py`. The reward names, the reward values, and the matching
-rules are unchanged, which the parity tests check key by key.
+`contextbench/graders/base.py`. The reward names are unchanged; the parity tests
+check the values key by key. The answer rules of kv store and log triage changed
+afterwards (see "Grading sources and checks").
 
 **`graded_from` is added to every result.** The source recorded no such field, because
 each grader read exactly one source. With three readers, a number is only meaningful
@@ -101,10 +103,41 @@ The public package selects a grader from `gold.meta.task_family` through a table
 `contextbench.graders`, with no import-path indirection to shadow, so the witness has
 nothing to guard.
 
-**An ungradeable run is invalid, not a zero.** A run that left no snapshots, no
-trajectory and no report returns `grader_valid: 0.0`, `graded_from: "none"` and a
-`grader_note` saying why. The source returned the same zero reward and
-`grader_valid: 0.0`; the note is new.
+**An ungradeable run is invalid, not a zero.** A run that cannot be graded returns
+`grader_valid: 0.0`, `reward: null` and a `grader_note` saying why, and the Harbor
+verifier writes no `reward.json` for it and fails. The source returned a zero reward
+with `grader_valid: 0.0`.
+
+## Grading sources and checks
+
+Changed after the release audit of the grader and runner; the families, streams, gold
+and reward definitions of needle retention and sudoku are unchanged.
+
+- **Where snapshots live.** Harnesses write snapshots through
+  `contextbench.tokens.SnapshotLog` into a snapshot root the agent cannot reach (for
+  Harbor, `<trial_dir>/contextbench_harness/`, not the mounted `/logs/agent`), with a
+  `snapshot_manifest.jsonl` holding each file's sha256 and a closing line. A write
+  that fails raises instead of being skipped.
+- **One source per mode, no fallback.** `harness` (scored runs) reads only that root;
+  `legacy` re-grades trials recorded before it existed, from `agent/context_snapshots`,
+  and is meant for offline use; `oracle` reads the oracle's `final_report.txt` and, in
+  the Harbor verifier, only for trials of Harbor's `oracle` agent. The trajectory and
+  report fallbacks are gone.
+- **Checks before scoring.** Unlisted, missing, modified or unreadable snapshot files,
+  a manifest that was not closed or that records a failed write, a snapshot budget that
+  is not the task's (`contextbench_budget_tokens`), a reserve below the task's, a
+  recorded token count that differs from the grader's recount, or a snapshot over the
+  budget (other than the wall-hitting tail of a `budget_wall` run) make the run invalid.
+- **Answers (kv store, log triage).** Read from assistant messages and tool output
+  only (terminus-2's terminal turns count as tool output: its snapshots say so). One
+  answer per question, the last one in snapshot order and then message order. kv values
+  and log lookups must equal the gold after whitespace normalization (the trailing
+  `#hex` tag of a log message is optional on both sides); counts must state exactly one
+  number. Before, any block in any message of any snapshot could match, a kv value or
+  lookup could be a substring of the answer, and a query was right when any of its
+  answers was.
+- **`tests/test.sh` does not grade.** Tasks are graded by the host verifier only; the
+  script removes reward files from `/logs/verifier` and exits non-zero.
 
 ## The feasibility gate
 

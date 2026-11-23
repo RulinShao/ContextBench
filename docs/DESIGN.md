@@ -11,7 +11,7 @@ has to do is expressed as ordinary user turns, so any chat agent can be evaluate
 |---|---|---|---|
 | kv_store | batches of `SET key = value` records | `GET key` after all batches | fraction of GETs answered with the right value |
 | log_triage | batches of log lines | count / lookup questions | fraction of questions answered correctly |
-| needle_retention | document chunks, each with a few needle lines and a large filler block | none; the agent keeps needle lines | fraction of needle lines present verbatim in the final context (or in the final report, see graders) |
+| needle_retention | document chunks, each with a few needle lines and a large filler block | none; the agent keeps needle lines | fraction of needle lines present verbatim in the final context |
 | sudoku_sketchpad | one move per turn; the agent re-prints the board with a bumped version | none | fraction of gold board versions whose exact content the agent displayed |
 
 Instance = `chunks.jsonl` (one op per line: `{"index", "header", "body"}`), `gold.json`, `meta.json`.
@@ -105,16 +105,24 @@ its content or its route into the context. A pull design (the agent fetches the 
 observation) breaks this, because observations pass through the harness's truncation and offload
 paths before they reach the context; it is not offered.
 
-Each task grades itself through Harbor's default verifier: after the agent has finished, Harbor
-copies `tests/` into the container and runs `tests/test.sh`, which runs a copy of the graders
-vendored into `tests/_cb/` (standard library only, so no verifier flag is needed). For images
-without `python3` the same grading runs host-side as `contextbench.harbor.verifiers:ContextBenchVerifier`
-(the family is read from the gold). Either way the graders read, in order of preference:
-`agent/context_snapshots/turn-*.json` (context-exposing agents, paper metric), else the ATIF
-`trajectory.json` (steps flattened to user / assistant / tool messages), else the final report.
-Harbor's reward dict must be numeric, so the source is recorded as `graded_from_code`
-(3 snapshots, 2 trajectory, 1 final report) and the full result, with `graded_from` and
-`terminated_by` as strings, goes to `verifier/contextbench_result.json`.
+Grading is host-side only: every run passes
+`--verifier contextbench.harbor.verifiers:ContextBenchVerifier`. The harness writes the
+per-turn snapshots through `contextbench.tokens.SnapshotLog` into
+`<trial_dir>/contextbench_harness/`, a sibling of `agent/` that Harbor does not mount into
+the container, together with `snapshot_manifest.jsonl` (each file's sha256, then a closing
+line with the terminal reason) and a copy of `interactive_stream.json`. The verifier reads
+the gold from the task's `tests/` and the budget from its `task.toml` metadata on the host,
+and grades only manifest-listed, unmodified snapshots (see `contextbench/graders/base.py`
+for the checks). Without the flag Harbor runs `tests/test.sh`, which grades nothing: it
+removes reward files from `/logs/verifier` and exits non-zero. An invalid run gets
+`contextbench_result.json` with the reason and no `reward.json`, and the verifier raises.
+`--verifier-kwarg mode=oracle` grades the oracle solution's `final_report.txt`, only in a
+trial whose `config.json` names Harbor's `oracle` agent. Harbor's reward dict must be
+numeric, so the source is recorded as `graded_from_code` (3 snapshots, 4 legacy snapshots,
+1 final report), the mode as `grade_mode_code`, the task budget as `budget_tokens` /
+`reserve_tokens`, and the full result, with `graded_from` and `terminated_by` as strings,
+goes to `verifier/contextbench_result.json`. `tests/_cb/` keeps a standard-library copy of
+the graders for grading a trial offline without installing the package.
 
 ## Package layout
 
@@ -124,14 +132,14 @@ contextbench/
   tasks/<family>/        generate.py (CLI + generate()), scaffold.md, levels in clm_exp/configs/paper.yaml
   stream.py              Op, render_op, is_ready_marker, refusal texts, terminated_by
   feasibility.py         evaluate(), receipt
-  tokens.py              count_tokens (tiktoken o200k, fallback), snapshot writer
-  graders/               kv.py log.py needle.py sudoku.py  (+ base.py with the three readers)
+  tokens.py              count_tokens (tiktoken o200k, fallback), SnapshotLog (snapshots + manifest)
+  graders/               kv.py log.py needle.py sudoku.py  (+ base.py: sources, budget checks)
   runner.py              Python runner
   oracle.py              gold-answer agent: self-check for instances, protocol and graders
   harbor/                package.py (task builder, --all), turn_source.py, mixin.py (CBStreamMixin),
                          agents/ (ContextBenchAgent, Terminus2Stream), wrap.py (cb_stream,
-                         CodexStream, MiniSweAgentStream), reward.py (grading for test.sh and
-                         the host verifier), verifiers.py (host-side BaseVerifier)
+                         CodexStream, MiniSweAgentStream), reward.py (reward files, offline
+                         grading), verifiers.py (the host-side verifier: scored and oracle modes)
   cli.py                 contextbench generate | check | run | grade | package
 clm_exp/                 paper experiment: configs/paper.yaml (levels, seeds), skills/ (method skills)
 environment/             contextbench.def, contextbench-cli-agents.def (Singularity image recipes)

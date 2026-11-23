@@ -45,7 +45,7 @@ from harbor.models.agent.context import AgentContext
 from harbor.models.trajectories import Step
 
 from ... import stream as proto
-from ...tokens import count_tokens, record_snapshot
+from ...tokens import SnapshotLog, count_tokens, harness_dir_for
 from ..turn_source import TurnSource
 
 __all__ = ["Terminus2Stream"]
@@ -114,17 +114,21 @@ class Terminus2Stream(Terminus2):
     # ----------------------------------------------------------------- helpers
     def _cb_snapshot(self, messages: list[Any], kind: str) -> int:
         ts = self.turn_source
-        tokens, _ = count_tokens(messages)
-        self._cb_peak_tokens = max(self._cb_peak_tokens, tokens)
-        record_snapshot(
-            self.logs_dir, self._cb_snap_step, list(messages),
+        step = self._cb_snap_step
+        self._cb_snap_step += 1
+        # terminus delivers terminal output as the user turns after the first (the
+        # first is its instruction prompt); the flag tells the graders to read those
+        # turns as tool output, and the first never as an answer.
+        _, tokens = self._cb_log.record(
+            step, list(messages),
             {"kind": kind, "episode": self._n_episodes,
              "summarization_count": self._summarization_count,
              "n_ops_delivered": ts.n_delivered if ts else 0,
              "n_ops_total": ts.n_total if ts else 0,
-             "budget": self.cb_budget, "reserve": self.cb_reserve},
+             "budget": self.cb_budget, "reserve": self.cb_reserve,
+             "tool_output_in_user_turns": True},
         )
-        self._cb_snap_step += 1
+        self._cb_peak_tokens = max(self._cb_peak_tokens, tokens)
         return tokens
 
     def _cb_user_step(self, text: str, kind: str, index: int | None) -> None:
@@ -142,7 +146,11 @@ class Terminus2Stream(Terminus2):
     async def run(
         self, instruction: str, environment: BaseEnvironment, context: AgentContext
     ) -> None:
+        root = harness_dir_for(self.logs_dir)
+        self._cb_log = SnapshotLog(root)
         ts = self.turn_source = await TurnSource.load(environment, logs_dir=self.logs_dir)
+        ts.harness_dir = root
+        ts.write()
         first = ts.first_turn(turn=0)
         self._cb_queue = [(first, "op", 0)] if first is not None else []
         try:
@@ -151,9 +159,14 @@ class Terminus2Stream(Terminus2):
             ts.terminate("timeout")
             raise
         finally:
-            if self._chat is not None and not self._cb_final_done:
-                self._cb_snapshot(self._chat.messages, "final")
-            ts.write()
+            try:
+                if self._chat is not None and not self._cb_final_done:
+                    self._cb_snapshot(self._chat.messages, "final")
+            finally:
+                ts.write()
+                self._cb_log.close(terminated_by=ts.terminated_by,
+                                   n_ops_delivered=ts.n_delivered,
+                                   n_ops_total=ts.n_total)
             usable = self.cb_budget - self.cb_reserve
             (Path(self.logs_dir) / "contextbench_subagent_calls.json").write_text(
                 json.dumps({"usable": usable, "calls": self._cb_subagent_calls},

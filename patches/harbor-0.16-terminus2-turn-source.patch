@@ -37,18 +37,18 @@ be importable by the harbor process. Generated against harbor 0.16.1.
 +        self._cb_snap_step = 0
 +
 +    def _cb_snapshot(self, messages: list, kind: str) -> int:
-+        from contextbench.tokens import count_tokens, record_snapshot
-+
-+        tokens, _ = count_tokens(messages)
-+        record_snapshot(
-+            self.logs_dir, self._cb_snap_step, list(messages),
++        # Host-only snapshot root (<trial_dir>/contextbench_harness), never /logs/agent.
++        step = self._cb_snap_step
++        self._cb_snap_step += 1
++        _, tokens = self._cb_log.record(
++            step, list(messages),
 +            {"kind": kind, "episode": self._n_episodes,
 +             "summarization_count": self._summarization_count,
 +             "n_ops_delivered": self._cb_stream.n_delivered,
 +             "n_ops_total": self._cb_stream.n_total,
-+             "budget": self._cb_budget, "reserve": self._cb_reserve},
++             "budget": self._cb_budget, "reserve": self._cb_reserve,
++             "tool_output_in_user_turns": True},
 +        )
-+        self._cb_snap_step += 1
 +        return tokens
  
      def _resolve_model_info(
@@ -133,21 +133,25 @@ be importable by the harbor process. Generated against harbor 0.16.1.
              # Capture the pending completion state before potentially modifying it
              was_pending_completion = self._pending_completion
  
-@@ -1594,6 +1672,13 @@
+@@ -1594,6 +1672,17 @@
              terminal_state=terminal_state,
          )
  
 +        if self._cb_enabled:
 +            from contextbench.harbor import TurnSource
++            from contextbench.tokens import SnapshotLog, harness_dir_for
 +
++            self._cb_log = SnapshotLog(harness_dir_for(self.logs_dir))
 +            self._cb_stream = await TurnSource.load(environment, logs_dir=self.logs_dir)
++            self._cb_stream.harness_dir = self._cb_log.root
++            self._cb_stream.write()
 +            first = self._cb_stream.first_turn(turn=0)
 +            self._cb_texts = [(first, "op", 0)] if first is not None else []
 +
          self._trajectory_steps.append(
              Step(
                  step_id=1,
-@@ -1609,7 +1694,20 @@
+@@ -1609,7 +1698,25 @@
                  chat=self._chat,
                  original_instruction=instruction,
              )
@@ -162,9 +166,14 @@ be importable by the harbor process. Generated against harbor 0.16.1.
 +            raise
          finally:
 +            if self._cb_stream is not None:
-+                if self._cb_stream.terminated_by != "stream_exhausted":
-+                    self._cb_snapshot(self._chat.messages, "final")
-+                self._cb_stream.write()
++                try:
++                    if self._cb_stream.terminated_by != "stream_exhausted":
++                        self._cb_snapshot(self._chat.messages, "final")
++                finally:
++                    self._cb_stream.write()
++                    self._cb_log.close(terminated_by=self._cb_stream.terminated_by,
++                                       n_ops_delivered=self._cb_stream.n_delivered,
++                                       n_ops_total=self._cb_stream.n_total)
              # Always capture metrics and rollout details even if the agent times out or errors
              # Combine main chat rollout details with subagent rollout details
              context.rollout_details = (

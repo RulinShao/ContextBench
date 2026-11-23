@@ -32,7 +32,10 @@ the context the benchmark measures, so there is no fallback. Supported:
 
 Both write ``context_snapshots/turn-NNNN.json`` built from the session the CLI saved
 (what the model is sent next), and ``interactive_stream.json``, through
-:class:`~contextbench.harbor.mixin.CBStreamMixin`, and keep the CLI's native logs.
+:class:`~contextbench.harbor.mixin.CBStreamMixin`, and keep the CLI's native logs. The
+CLIs keep their own state in ``/logs/agent`` (codex ``sessions/``, mini-swe-agent's
+saved messages); the snapshots built from it go to the host-only snapshot root
+(``<trial_dir>/contextbench_harness/``), which the CLI cannot write.
 They expect the CLI in the image (``environment/contextbench-cli-agents.def``) and
 fall back to Harbor's own install otherwise.
 """
@@ -241,10 +244,12 @@ class _MiniSweResume(_StreamChain):
             raise
         finally:
             try:
-                self.cb_snapshot(self._state_messages(), "final")
+                final = self._state_messages()
             except Exception:
-                pass
-            ts.write()
+                final = None  # no saved session to read: nothing to snapshot
+            # A snapshot that cannot be written is not swallowed: cb_finish closes the
+            # manifest as failed and the run is graded as invalid.
+            self.cb_finish(None, final)
             context.metadata = {"terminated_by": ts.terminated_by,
                                 "n_ops_delivered": ts.n_delivered,
                                 "n_ops_total": ts.n_total, "n_steps": step,
@@ -464,7 +469,7 @@ class _CodexResume(_StreamChain):
             ts.terminate("timeout")
             raise
         finally:
-            ts.write()
+            self.cb_finish(None)
             (self.logs_dir / "codex_stream.json").write_text(json.dumps(
                 {"thread_id": self.thread_id, "n_invocations": n,
                  "peak_context_tokens": self.cb_peak_tokens}, indent=2) + "\n")

@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from contextbench import tokens as tk
 
 
@@ -87,8 +89,9 @@ def test_snapshot_paths_are_in_turn_order(tmp_path: Path) -> None:
     ]
 
 
-def test_record_snapshot_never_raises(tmp_path: Path) -> None:
-    """Snapshotting is a logging side effect: it must not break a run."""
+def test_record_snapshot_raises_when_it_cannot_write(tmp_path: Path) -> None:
+    """A snapshot that was not written must never look like a turn with nothing in it."""
     blocked = tmp_path / "file"
     blocked.write_text("not a directory", encoding="utf-8")
-    assert tk.record_snapshot(blocked, 1, [{"role": "user", "content": "x"}]) is None
+    with pytest.raises(tk.SnapshotWriteError):
+        tk.record_snapshot(blocked, 1, [{"role": "user", "content": "x"}])

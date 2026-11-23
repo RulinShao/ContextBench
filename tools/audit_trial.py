@@ -14,7 +14,17 @@ Checks, from the trial's own files (never from the agent's claims):
   it is that readiness command;
 * early-submit refusals, peak context tokens against the budget;
 * harness-specific evidence: CLM context edits, terminus summarizations, codex
-  compactions.
+  compactions;
+* agent access to the logs/grading folders: any command the agent ran that names
+  ``/logs``, ``context_snapshots``, ``contextbench_harness``, the snapshot manifest,
+  ``interactive_stream.json`` or a reward file;
+* needle tags written to disk (needle tasks): any command that carries a needle tag
+  (``[n00012i03#...]``) together with a file write (``>``, ``>>``, ``tee``, ``sed -i``,
+  ``cp``/``mv``, ``dd``, ``open(..., "w")``).
+
+Snapshots are read from the trial's host-only snapshot root
+(``<trial>/contextbench_harness``) when it exists, else from ``<trial>/agent`` (a
+trial recorded before the snapshot root existed; reported as ``legacy``).
 """
 
 from __future__ import annotations
@@ -30,7 +40,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from contextbench.graders.base import _decoded_tool_json, atif_messages  # noqa: E402
 from contextbench.stream import is_ready_command, is_ready_line  # noqa: E402
-from contextbench.tokens import snapshot_paths  # noqa: E402
+from contextbench.tokens import HARNESS_DIRNAME, MANIFEST_NAME, snapshot_paths  # noqa: E402
 
 _HEADER_RE = re.compile(r"^=== .* \((\d+) op\(s\) remaining after this\) ===$", re.MULTILINE)
 #: Text a harness puts in place of the history it compacted: terminus-2's handoff
@@ -103,8 +113,12 @@ def _released_by_ready(entry: dict) -> bool | None:
 
 def load(trial: Path) -> dict:
     agent = trial / "agent"
-    d: dict[str, Any] = {"trial": trial, "agent": agent}
-    for name, rel in (("stream", agent / "interactive_stream.json"),
+    harness = trial / HARNESS_DIRNAME
+    snap_root = harness if (harness / MANIFEST_NAME).is_file() else agent
+    d: dict[str, Any] = {"trial": trial, "agent": agent, "snap_root": snap_root,
+                         "snapshot_source": "harness" if snap_root == harness else "legacy"}
+    stream_dir = harness if (harness / "interactive_stream.json").is_file() else agent
+    for name, rel in (("stream", stream_dir / "interactive_stream.json"),
                       ("reward", trial / "verifier" / "reward.json"),
                       ("cb_result", trial / "verifier" / "contextbench_result.json"),
                       ("result", trial / "result.json"),
@@ -114,7 +128,7 @@ def load(trial: Path) -> dict:
         except Exception:
             d[name] = None
     frames = []
-    for p in snapshot_paths(agent):
+    for p in snapshot_paths(snap_root):
         try:
             obj = json.loads(p.read_text())
         except Exception:
@@ -397,6 +411,35 @@ _KV_ANSWER = re.compile(r"<<<\s*ANSWER\s+key\s*=\s*([^\s>]+)\s*>>>(.*?)<<<\s*ANS
                         re.DOTALL | re.IGNORECASE)
 
 
+#: Paths an agent has no business touching: its harness's records and the grader's.
+_LOGS_RE = re.compile(r"/logs\b|context_snapshots|" + re.escape(HARNESS_DIRNAME) + r"|"
+                      r"snapshot_manifest|interactive_stream\.json|reward\.(?:json|txt)|"
+                      r"contextbench_result\.json")
+_NEEDLE_TAG_RE = re.compile(r"\[n\d+i\d+#[0-9a-f]+\]")
+_WRITE_RE = re.compile(r"(?<![<>=!-])>>?(?!&)|\btee\b|\bsed\s+(?:-\w*\s+)*-i|\bcp\b|\bmv\b|"
+                       r"\bdd\b|\bopen\([^)]*['\"][wa]")
+
+
+def agent_commands(d: dict) -> list[str]:
+    """Every distinct command the agent ran, as recorded in its snapshots, in order."""
+    seen: dict[str, None] = {}
+    for _name, _tok, msgs, _obj in d["frames"]:
+        for m in msgs:
+            if not isinstance(m, dict) or m.get("role") != "assistant":
+                continue
+            for c in _commands(m) or _terminus_commands(_text(m.get("content"))):
+                seen.setdefault(c, None)
+    return list(seen)
+
+
+def access_checks(d: dict) -> dict:
+    """Commands touching the logs/grading folders; needle tags written to disk."""
+    cmds = agent_commands(d)
+    logs = [c for c in cmds if _LOGS_RE.search(c)]
+    needle_writes = [c for c in cmds if _NEEDLE_TAG_RE.search(c) and _WRITE_RE.search(c)]
+    return {"n_commands": len(cmds), "logs_access": logs, "needle_writes": needle_writes}
+
+
 def _norm(t: str) -> str:
     return re.sub(r"\s+", " ", t).strip()
 
@@ -471,11 +514,12 @@ def provenance(d: dict, gold: dict) -> dict:
 
 def sudoku_misses(d: dict, gold: dict, limit: int = 8) -> dict:
     """Gold versions the agent never displayed correctly, with cell diffs."""
-    from contextbench.graders.base import read_context
+    from contextbench.graders.base import ContextSource
     from contextbench.graders.sudoku import SudokuSketchpadGrader, gold_states
 
     side = int(gold["meta"]["side"])
-    obs = SudokuSketchpadGrader._observe(read_context(d["agent"]), side)
+    source = ContextSource("audit", [m for _n, _t, m, _o in d["frames"]])
+    obs = SudokuSketchpadGrader._observe(source, side)
     delivered = (d["stream"] or {}).get("n_ops_delivered", 0)
     missed, undelivered = [], 0
     for v, cells in gold_states(gold):
@@ -615,6 +659,16 @@ def render(d: dict, title: str, relative_to: Path | None = None) -> str:
         for v, why, diff in sm["missed"]:
             lines.append(f"  - v{v} (op {v - 1}, move v{v}): {why}"
                          + (f": {'; '.join(diff)}" if diff else ""))
+    acc = access_checks(d)
+    lines.append(f"- snapshots read from: {d['snapshot_source']} "
+                 f"(`{d['snap_root'].name}/`)")
+    lines.append(f"- commands naming the logs/grading folders: {len(acc['logs_access'])} "
+                 f"of {acc['n_commands']}"
+                 + (f" (first: {acc['logs_access'][0][:120]!r})" if acc["logs_access"] else ""))
+    if fam == "needle_retention":
+        lines.append(f"- commands writing needle tags to disk: {len(acc['needle_writes'])}"
+                     + (f" (first: {acc['needle_writes'][0][:120]!r})"
+                        if acc["needle_writes"] else ""))
     lines.append("")
     lines.append("Excerpts:")
     lines.append("")
@@ -625,7 +679,12 @@ def render(d: dict, title: str, relative_to: Path | None = None) -> str:
             lines += [f"- {label}:", "", "  ```"] + ["  " + ln for ln in body.splitlines()] \
                 + ["  ```"]
     lines.append("")
-    lines.append("Flags: " + ("; ".join(a["flags"]) if a["flags"] else "none from the checks above."))
+    flags = list(a["flags"])
+    if acc["logs_access"]:
+        flags.append(f"{len(acc['logs_access'])} command(s) name the logs/grading folders")
+    if fam == "needle_retention" and acc["needle_writes"]:
+        flags.append(f"{len(acc['needle_writes'])} command(s) write needle tags to disk")
+    lines.append("Flags: " + ("; ".join(flags) if flags else "none from the checks above."))
     lines.append("")
     return "\n".join(lines)
 
@@ -642,6 +701,8 @@ def main(argv: list[str] | None = None) -> int:
     if a.json:
         out = audit(d)
         out["first_seen"] = {str(k): v for k, v in out["first_seen"].items()}
+        out["snapshot_source"] = d["snapshot_source"]
+        out.update(access_checks(d))
         print(json.dumps(out, indent=2, default=str))
     else:
         print(render(d, a.title or a.trial.name, a.relative_to))

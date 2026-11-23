@@ -21,7 +21,7 @@ from typing import Any, Protocol, runtime_checkable
 from . import stream as proto
 from .graders import grade_run
 from .stream import Op, render_op
-from .tokens import count_tokens, record_snapshot
+from .tokens import SnapshotLog
 
 __all__ = [
     "ContextAgent",
@@ -114,8 +114,10 @@ def run(
     because a real serving stack would have refused the next request. ``max_turns``
     is a safety stop, not part of the task: leave it unset for a full horizon.
 
-    Writes ``context_snapshots/turn-NNNN.json`` per turn, ``interactive_stream.json``
-    and ``result.json`` into ``out_dir``, and returns the same result dict.
+    Writes ``context_snapshots/turn-NNNN.json`` per turn (with
+    ``snapshot_manifest.jsonl``; ``out_dir`` is the snapshot root),
+    ``interactive_stream.json`` and ``result.json`` into ``out_dir``, and returns the
+    same result dict. The run is graded against ``budget``/``reserve``.
 
     ``out_dir`` must be empty or absent: the graders read every snapshot in it, so
     files from an earlier run would be credited to this one. ``overwrite=True``
@@ -133,6 +135,7 @@ def run(
 
         shutil.rmtree(out)
     out.mkdir(parents=True, exist_ok=True)
+    snapshots = SnapshotLog(out)
     usable = budget - reserve
 
     instruction = instruction_for(instance, delivery=delivery)
@@ -159,10 +162,7 @@ def run(
         step += 1
 
         messages = list(agent.context() or [])
-        tokens, _ = count_tokens(messages)
-        peak_tokens = max(peak_tokens, tokens)
-        record_snapshot(
-            out,
+        _, tokens = snapshots.record(
             step,
             messages,
             {
@@ -172,6 +172,7 @@ def run(
                 "reserve": reserve,
             },
         )
+        peak_tokens = max(peak_tokens, tokens)
 
         if tokens > usable:
             terminated_by = "budget_wall"
@@ -210,8 +211,10 @@ def run(
     (out / "interactive_stream.json").write_text(
         json.dumps(stream_record, indent=2) + "\n", encoding="utf-8"
     )
+    snapshots.close(terminated_by=terminated_by, n_ops_delivered=delivered,
+                    n_ops_total=total_ops)
 
-    rewards = grade_run(out, instance.gold)
+    rewards = grade_run(out, instance.gold, budget=budget, reserve=reserve)
     result: dict[str, Any] = {
         "task_family": instance.family,
         "instance_dir": str(instance.path),
@@ -220,7 +223,7 @@ def run(
         "reserve": reserve,
         "n_turns": step,
         "peak_tokens": peak_tokens,
-        "reward": rewards.get("reward", 0.0),
+        "reward": rewards.get("reward"),
         "rewards": rewards,
         **stream_record,
     }

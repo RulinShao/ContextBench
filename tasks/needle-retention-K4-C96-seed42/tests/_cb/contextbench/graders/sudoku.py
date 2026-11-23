@@ -3,8 +3,11 @@
 Each move advances the sketchpad to a new version ``v`` with a correct grid ``G_v``
 (a cell-to-value map). The agent labels every panel it displays with a ``VERSION``
 line. Every versioned panel the agent ever displayed is recovered from the per-turn
-context frames, and for each gold version the grader checks whether the agent
-displayed that exact grid.
+context frames (every message: a board shown through a tool call counts, and so does
+a board a context-editing harness keeps in a rewritten message of any role; the ops
+carry no panels, and the instruction's example is version 0, which is not graded),
+and for each gold version the grader checks whether the agent displayed that exact
+grid.
 
 This makes the styles comparable on one number. An agent that edits its context in
 place bumps the version and changes the affected cells, so one panel lives in
@@ -30,10 +33,9 @@ Rewards:
 from __future__ import annotations
 
 import re
-from pathlib import Path
 from typing import Iterator
 
-from .base import ContextSource, Grader, messages_text, read_context
+from .base import ContextSource, Grader, InvalidRun, messages_text
 
 __all__ = ["SudokuSketchpadGrader", "SYMBOLS"]
 
@@ -129,7 +131,7 @@ def gold_states(gold: dict) -> Iterator[tuple[int, Cells]]:
 class SudokuSketchpadGrader(Grader):
     family = "sudoku_sketchpad"
 
-    def grade(self, run_dir: Path | str, gold: dict) -> dict:
+    def check_gold(self, gold: dict) -> None:
         meta = gold.get("meta") or {}
         # No silent 9x9 default: a missing side in a 16x16 or 25x25 gold would grade
         # the board on a 9x9 assumption and look perfectly healthy while doing it.
@@ -139,11 +141,9 @@ class SudokuSketchpadGrader(Grader):
                 "board graded under a silent 9x9 default would pass every check we "
                 "have. Stamp 'side' in the instance gold.meta."
             )
-        side = int(meta["side"])
 
-        source = read_context(run_dir)
-        if source.graded_from == "none":
-            return self._invalid("none", "no context snapshots, trajectory or report")
+    def score(self, source: ContextSource, gold: dict) -> dict:
+        side = int((gold.get("meta") or {})["side"])
         obs = self._observe(source, side)
 
         total = 0
@@ -168,7 +168,7 @@ class SudokuSketchpadGrader(Grader):
                 )
 
         if total == 0:
-            return self._invalid(source.graded_from, "gold has no graded versions")
+            raise InvalidRun("gold has no graded versions")
 
         final_state: Panel | None = obs["final"]
         final_em = 1.0 if (final_state is not None and final_state == final_gold) else 0.0
@@ -178,7 +178,7 @@ class SudokuSketchpadGrader(Grader):
             else 0.0
         )
 
-        result = {
+        return {
             "reward": content / total,
             "reward_versioned": versioned / total,
             "reward_content": content / total,
@@ -187,12 +187,7 @@ class SudokuSketchpadGrader(Grader):
             "reward_final_cell": final_cell,
             "matched": float(versioned),
             "total": float(total),
-            "n_snapshots": float(source.n_snapshots),
-            "graded_from": source.graded_from,
-            "grader_valid": 1.0,
         }
-        result.update(self._token_stats(source.tokens))
-        return result
 
     @staticmethod
     def _observe(source: ContextSource, side: int) -> dict:

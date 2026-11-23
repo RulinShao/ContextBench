@@ -1,20 +1,30 @@
-"""Grader plumbing: the three ways a run's context is read back.
+"""Grader plumbing: where a run's context is read from, and what is checked first.
 
 Every ContextBench reward is computed out of the agent's own messages, never off
-disk. Three readers supply those messages, in order of preference:
+disk. Three sources exist, and a caller names the one it wants (``mode``); there is
+no fallback from one to another:
 
-1. **snapshots** -- ``context_snapshots/turn-*.json``, one per turn. This is the
-   paper metric: an agent that parks content outside its context and surfaces a
-   value only transiently still has that value captured in the snapshot of the turn
-   where it appeared.
-2. **trajectory** -- an ATIF ``trajectory.json``: a flat list of chat messages that
-   context edits mutate in place, so the final file is exactly the retained
-   context. One frame, not a per-turn series.
-3. **final report** -- the closing text of a run whose agent cannot expose its
-   context at all.
+1. ``harness`` (scored runs) -- the per-turn ``context_snapshots/turn-*.json`` a
+   harness wrote through :class:`contextbench.tokens.SnapshotLog` into a snapshot
+   root the agent cannot reach (for Harbor ``<trial_dir>/contextbench_harness``).
+   Only files listed in the root's closed ``snapshot_manifest.jsonl`` with a matching
+   sha256 are read; an unlisted file, a missing or changed file, an unreadable file,
+   a manifest that was never closed or that records a failed write all make the run
+   **invalid**. ``graded_from="snapshots"``.
+2. ``legacy`` (offline re-grading only) -- the snapshots of a trial recorded before
+   the snapshot root existed, in the agent's logs dir, with no manifest. Every file
+   must parse. ``graded_from="legacy_snapshots"``.
+3. ``oracle`` -- the gold answers that ``solution/solve.sh`` writes as
+   ``final_report.txt``; only for checking that a task, its gold and its grader
+   agree. ``graded_from="final_report"``, never comparable to a context grade.
 
-Which reader ran is recorded as ``graded_from`` in every reward dict, so a number
-is never comparable by accident across sources.
+Before scoring, the harness and legacy sources are checked against the task's token
+budget (:func:`check_budget`). ANSWER blocks (kv store, log triage) are read only
+from what the agent produced -- assistant messages and tool output
+(:func:`answer_messages`). Needle retention reads the whole final context, because
+retaining the delivered lines is what it measures, and the sudoku grader reads every
+message of every frame, as before (a context-editing harness such as CLM keeps the
+edited board in a rewritten message whose role is ``user``).
 """
 
 from __future__ import annotations
@@ -25,12 +35,27 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Sequence
 
-from ..tokens import SNAPSHOT_DIRNAME, snapshot_paths
+from ..tokens import (
+    HARNESS_DIRNAME,
+    MANIFEST_NAME,
+    SNAPSHOT_DIRNAME,
+    count_tokens,
+    encoder_name,
+    snapshot_paths,
+)
 
 __all__ = [
+    "GRADE_MODES",
     "ContextSource",
+    "InvalidRun",
+    "answer_messages",
     "atif_messages",
+    "check_budget",
     "Grader",
+    "read_harness_snapshots",
+    "read_legacy_snapshots",
+    "read_oracle_report",
+    "resolve_snapshot_root",
     "find_snapshots_dir",
     "find_trajectory",
     "messages_text",
@@ -49,6 +74,14 @@ FINAL_REPORT_NAMES = (
     "report.txt",
     "report.md",
 )
+
+
+#: ``harness`` (scored), ``legacy`` (offline re-grade of old trials), ``oracle``.
+GRADE_MODES = ("harness", "legacy", "oracle")
+
+
+class InvalidRun(Exception):
+    """The run cannot be graded; the reason is the message. Never a zero score."""
 
 
 def normalize(text: str) -> str:
@@ -97,6 +130,35 @@ def messages_text(messages: Sequence[Any] | None) -> str:
     return "\n".join(texts)
 
 
+#: Roles whose text is the agent's own output.
+ANSWER_ROLES = ("assistant", "tool")
+
+
+def answer_messages(frame: Sequence[Any], *,
+                    tool_output_in_user_turns: bool = False) -> list[Any]:
+    """The messages of one frame an answer may come from: what the agent produced.
+
+    Assistant messages and tool output count; user and system text (the instruction,
+    with its example ANSWER block, and the ops) never does. A harness that delivers
+    tool output as user turns (terminus-2, whose user turns after the first are the
+    terminal screen) records ``tool_output_in_user_turns`` in its snapshots; then the
+    user turns after the first user turn count as tool output.
+    """
+    out: list[Any] = []
+    seen_user = False
+    for msg in frame or []:
+        if not isinstance(msg, dict):
+            continue
+        role = msg.get("role")
+        if role in ANSWER_ROLES:
+            out.append(msg)
+        elif role == "user":
+            if seen_user and tool_output_in_user_turns:
+                out.append(msg)
+            seen_user = True
+    return out
+
+
 # ----------------------------------------------------------------- locating files
 def _candidate_dirs(run_dir: Path) -> list[Path]:
     """``run_dir`` itself and the usual agent subdirectories, in preference order."""
@@ -129,11 +191,15 @@ class ContextSource:
     """The messages a grader scores, and where they came from."""
 
     graded_from: str
-    #: One message list per turn. A trajectory or a report yields a single frame.
+    #: One message list per turn. A report yields a single frame.
     frames: list[list[Any]] = field(default_factory=list)
-    #: Per-turn context size, when the source records it.
+    #: Per-turn context size (after :func:`check_budget`: the grader's own count).
     tokens: list[int] = field(default_factory=list)
     n_snapshots: int = 0
+    #: Per-frame snapshot fields other than ``messages`` (empty for a report).
+    records: list[dict[str, Any]] = field(default_factory=list)
+    #: The run's terminal reason as the harness recorded it, when known.
+    terminated_by: str | None = None
 
     @property
     def final_frame(self) -> list[Any]:
@@ -145,27 +211,247 @@ class ContextSource:
     def all_text(self) -> str:
         return "\n".join(self.texts())
 
+    def answer_texts(self) -> list[str]:
+        """Per frame, the text of the messages an answer may come from."""
+        out = []
+        for i, frame in enumerate(self.frames):
+            rec = self.records[i] if i < len(self.records) else {}
+            out.append(messages_text(answer_messages(
+                frame, tool_output_in_user_turns=bool(
+                    rec.get("tool_output_in_user_turns")))))
+        return out
 
-def read_snapshots(run_dir: Path | str) -> ContextSource | None:
-    """Read ``context_snapshots/turn-*.json`` as one frame per turn."""
-    snap_dir = find_snapshots_dir(run_dir)
-    if snap_dir is None:
-        return None
+
+def resolve_snapshot_root(path: Path | str) -> Path:
+    """``path`` if it holds a snapshot manifest, else ``path/contextbench_harness``.
+
+    Never searches an agent's logs dir: a manifest planted there is not a root.
+    """
+    path = Path(path)
+    if (path / MANIFEST_NAME).is_file():
+        return path
+    return path / HARNESS_DIRNAME
+
+
+def _read_manifest(root: Path) -> list[dict[str, Any]]:
+    path = root / MANIFEST_NAME
+    if not path.is_file():
+        raise InvalidRun(f"no snapshot manifest at {path}: the harness wrote no "
+                         "snapshots there (no fallback to other sources)")
+    lines: list[dict[str, Any]] = []
+    for n, raw in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+        if not raw.strip():
+            continue
+        try:
+            obj = json.loads(raw)
+        except Exception:
+            raise InvalidRun(f"{path.name} line {n} is not JSON") from None
+        if not isinstance(obj, dict):
+            raise InvalidRun(f"{path.name} line {n} is not an object")
+        lines.append(obj)
+    return lines
+
+
+def read_harness_snapshots(root: Path | str) -> ContextSource:
+    """Read a snapshot root written by :class:`contextbench.tokens.SnapshotLog`.
+
+    Raises :class:`InvalidRun` unless the manifest has a header, consecutive steps,
+    a last line that closes it with no failed write and the right count, and every
+    listed file exists unmodified -- and no other ``turn-*.json`` exists.
+    """
+    root = Path(root)
+    lines = _read_manifest(root)
+    if not lines or not lines[0].get("header"):
+        raise InvalidRun("snapshot manifest has no header line")
+    entries = [ln for ln in lines if "file" in ln]
+    closes = [ln for ln in lines if ln.get("closed")]
+    failed = [ln.get("failed") for ln in lines if ln.get("failed")]
+    if failed:
+        raise InvalidRun(f"the harness failed to write a snapshot: {failed[0]}")
+    if not closes or not lines[-1].get("closed"):
+        raise InvalidRun("snapshot manifest was never closed: the run did not finish "
+                         "recording (crash, or a failed snapshot write)")
+    if int(lines[-1].get("n_snapshots", -1)) != len(entries):
+        raise InvalidRun(f"snapshot manifest closes with n_snapshots="
+                         f"{lines[-1].get('n_snapshots')} but lists {len(entries)}")
+    if not entries:
+        raise InvalidRun("the harness recorded no snapshots")
+    steps = [int(e.get("step", -1)) for e in entries]
+    if any(b != a + 1 for a, b in zip(steps, steps[1:])):
+        raise InvalidRun(f"snapshot steps are not consecutive: {steps[:8]}...")
+    listed = {}
+    for e, st in zip(entries, steps):
+        name = str(e.get("file"))
+        if name != f"turn-{st:04d}.json" or name in listed:
+            raise InvalidRun(f"manifest entry {name!r} for step {st} is malformed")
+        listed[name] = e
+    on_disk = {p.name for p in snapshot_paths(root)}
+    extra = sorted(on_disk - set(listed))
+    if extra:
+        raise InvalidRun(f"snapshot file(s) the harness did not write: {extra[:5]}")
+    missing = sorted(set(listed) - on_disk)
+    if missing:
+        raise InvalidRun(f"snapshot file(s) listed in the manifest are missing: "
+                         f"{missing[:5]}")
+
+    import hashlib
+
     frames: list[list[Any]] = []
     tokens: list[int] = []
-    n = 0
-    for path in snapshot_paths(snap_dir.parent):
+    records: list[dict[str, Any]] = []
+    for name, e in listed.items():
+        data = (root / SNAPSHOT_DIRNAME / name).read_bytes()
+        if hashlib.sha256(data).hexdigest() != e.get("sha256"):
+            raise InvalidRun(f"{name} was modified after the harness wrote it")
+        try:
+            obj = json.loads(data.decode("utf-8"))
+        except Exception:
+            raise InvalidRun(f"{name} is not readable JSON") from None
+        messages = obj.get("messages") if isinstance(obj, dict) else None
+        if not isinstance(messages, list) or obj.get("step") != e.get("step"):
+            raise InvalidRun(f"{name} has no message list or the wrong step")
+        frames.append(messages)
+        tokens.append(int(obj.get("tokens") or 0))
+        records.append({k: v for k, v in obj.items() if k != "messages"})
+    return ContextSource("snapshots", frames, tokens, len(frames), records,
+                         lines[-1].get("terminated_by"))
+
+
+def read_legacy_snapshots(agent_dir: Path | str) -> ContextSource:
+    """Snapshots of a trial recorded before the snapshot root existed (offline only).
+
+    Reads ``<agent_dir>/context_snapshots/turn-*.json`` with no manifest: such files
+    sat in the agent's logs dir, so this mode is for re-grading trials whose
+    provenance has been checked by other means (``tools/audit_trial.py``). Every file
+    must parse; ``terminated_by`` comes from ``<agent_dir>/interactive_stream.json``.
+    """
+    agent_dir = Path(agent_dir)
+    snap_dir = agent_dir / SNAPSHOT_DIRNAME
+    if not snap_dir.is_dir():
+        raise InvalidRun(f"no {SNAPSHOT_DIRNAME}/ directory in {agent_dir}")
+    frames: list[list[Any]] = []
+    tokens: list[int] = []
+    records: list[dict[str, Any]] = []
+    for path in snapshot_paths(agent_dir):
         try:
             obj = json.loads(path.read_text(encoding="utf-8"))
         except Exception:
-            continue
-        n += 1
-        if isinstance(obj.get("tokens"), (int, float)):
-            tokens.append(int(obj["tokens"]))
-        frames.append(obj.get("messages") or [])
-    if n == 0:
-        return None
-    return ContextSource("snapshots", frames, tokens, n)
+            raise InvalidRun(f"{path.name} is not readable JSON") from None
+        messages = obj.get("messages") if isinstance(obj, dict) else None
+        if not isinstance(messages, list):
+            raise InvalidRun(f"{path.name} has no message list")
+        frames.append(messages)
+        tokens.append(int(obj.get("tokens") or 0))
+        records.append({k: v for k, v in obj.items() if k != "messages"})
+    if not frames:
+        raise InvalidRun(f"no turn-*.json snapshots in {snap_dir}")
+    terminated_by = None
+    stream = agent_dir / "interactive_stream.json"
+    if stream.is_file():
+        try:
+            terminated_by = json.loads(stream.read_text(encoding="utf-8")).get(
+                "terminated_by")
+        except Exception:
+            raise InvalidRun("interactive_stream.json is not readable JSON") from None
+    return ContextSource("legacy_snapshots", frames, tokens, len(frames), records,
+                         terminated_by)
+
+
+#: The only report the oracle mode reads (what ``solution/solve.sh`` writes).
+ORACLE_REPORT_NAME = "final_report.txt"
+
+
+def read_oracle_report(agent_dir: Path | str) -> ContextSource:
+    """The oracle's ``final_report.txt`` as one assistant frame."""
+    path = Path(agent_dir) / ORACLE_REPORT_NAME
+    if not path.is_file():
+        raise InvalidRun(f"oracle mode: no {ORACLE_REPORT_NAME} in {agent_dir}")
+    text = path.read_text(encoding="utf-8")
+    return ContextSource("final_report", [[{"role": "assistant", "content": text}]],
+                         [], 0, [{}], None)
+
+
+def read_snapshots(run_dir: Path | str) -> ContextSource:
+    """Back-compat name for :func:`read_legacy_snapshots`."""
+    return read_legacy_snapshots(run_dir)
+
+
+def read_context(run_dir: Path | str, *, mode: str = "harness") -> ContextSource:
+    """The context of one run, from exactly the source ``mode`` names.
+
+    ``harness``: ``run_dir`` is a snapshot root (or a directory holding
+    ``contextbench_harness/``); ``legacy``: an old-layout agent dir; ``oracle``: the
+    agent dir the oracle's ``solve.sh`` wrote into. Raises :class:`InvalidRun`.
+    """
+    if mode == "harness":
+        return read_harness_snapshots(resolve_snapshot_root(run_dir))
+    if mode == "legacy":
+        return read_legacy_snapshots(run_dir)
+    if mode == "oracle":
+        return read_oracle_report(run_dir)
+    raise ValueError(f"unknown grade mode {mode!r}; known: {', '.join(GRADE_MODES)}")
+
+
+def check_budget(source: ContextSource, budget: int | None, reserve: int | None, *,
+                 strict_tokens: bool = True) -> dict[str, float]:
+    """Check a snapshot source against the task's budget; raise :class:`InvalidRun`.
+
+    * Every snapshot that records a ``budget`` must record the task's; a harness
+      snapshot (``strict_tokens``) must record one. A recorded ``reserve`` may be
+      larger than the task's (a stricter wall), never smaller.
+    * The grader recounts every frame. With ``strict_tokens``, a recorded count made
+      with the grader's own token method must equal the recount.
+    * No frame may exceed the budget, except frames at the very end of a run whose
+      harness recorded ``terminated_by="budget_wall"`` (the context that hit the wall
+      is recorded before the run stops). An agent may enforce a stricter wall.
+
+    On success ``source.tokens`` holds the grader's counts; returns the numbers the
+    reward records.
+    """
+    if budget is None:
+        raise InvalidRun("no task budget given to the grader (contextbench_budget_tokens "
+                         "in task.toml metadata)")
+    budget = int(budget)
+    method = encoder_name()
+    counted: list[int] = []
+    verified = True
+    for i, (frame, rec) in enumerate(zip(source.frames, source.records)):
+        rb = rec.get("budget")
+        if rb is None:
+            if strict_tokens:
+                raise InvalidRun(f"snapshot {i} records no budget")
+        elif int(rb) != budget:
+            raise InvalidRun(f"snapshot {i} was recorded under budget {rb}, the task's "
+                             f"is {budget}")
+        rr = rec.get("reserve")
+        if rr is not None and reserve is not None and int(rr) < int(reserve):
+            raise InvalidRun(f"snapshot {i} was recorded with reserve {rr}, below the "
+                             f"task's {reserve}")
+        recount, _ = count_tokens(frame)
+        recorded = rec.get("tokens")
+        if rec.get("token_method") == method:
+            if strict_tokens and recorded is not None and int(recorded) != recount:
+                raise InvalidRun(f"snapshot {i} records {recorded} tokens, its messages "
+                                 f"count {recount}")
+            tok = recount if strict_tokens else max(recount, int(recorded or 0))
+        else:
+            # The grader cannot reproduce the recorded method (no tiktoken here):
+            # keep the larger of the two and say the count is unverified.
+            verified = False
+            tok = max(recount, int(recorded or 0))
+        counted.append(tok)
+    over = [i for i, t in enumerate(counted) if t > budget]
+    if over:
+        tail = over == list(range(over[0], len(counted)))
+        if not (tail and source.terminated_by == "budget_wall"):
+            i = over[0]
+            raise InvalidRun(f"snapshot {i} holds {counted[i]} tokens, over the task "
+                             f"budget {budget}")
+    source.tokens = counted
+    return {"budget_tokens": float(budget),
+            "reserve_tokens": float(reserve) if reserve is not None else -1.0,
+            "tokens_verified": 1.0 if verified else 0.0,
+            "n_snapshots_over_budget": float(len(over))}
 
 
 def read_trajectory(run_dir: Path | str) -> ContextSource | None:
@@ -246,45 +532,67 @@ def read_final_report(run_dir: Path | str) -> str:
     return messages_text(assistant or source.final_frame)
 
 
-def read_context(run_dir: Path | str) -> ContextSource:
-    """The best available source for ``run_dir``.
-
-    Snapshots first (the paper metric), then the ATIF trajectory, then the final
-    report. An empty :class:`ContextSource` with ``graded_from="none"`` means the
-    run left nothing gradeable behind, which a grader reports as invalid rather
-    than as a zero.
-    """
-    for reader in (read_snapshots, read_trajectory):
-        source = reader(run_dir)
-        if source is not None:
-            return source
-    report = read_final_report(run_dir)
-    if report:
-        return ContextSource(
-            "final_report", [[{"role": "assistant", "content": report}]], [], 0
-        )
-    return ContextSource("none", [], [], 0)
-
-
 # ---------------------------------------------------------------------- base class
+#: ``graded_from`` of each mode, used in an invalid result too.
+_GRADED_FROM = {"harness": "snapshots", "legacy": "legacy_snapshots",
+                "oracle": "final_report"}
+
+
 class Grader:
     """A ContextBench grader.
 
-    Subclasses implement :meth:`grade`, which takes a run directory and the parsed
-    ``gold.json`` and returns a reward dict. Every returned dict carries
-    ``graded_from`` and ``grader_valid``.
+    :meth:`grade` reads the source ``mode`` names, checks it against the task budget
+    (harness and legacy modes), and hands it to the family's :meth:`score`. Every
+    returned dict carries ``graded_from``, ``grade_mode`` and ``grader_valid``; an
+    invalid result has ``reward=None`` and a ``grader_note``, never a zero score.
     """
 
     family: str = ""
     #: The reward name a caller should read as "the score".
     primary: str = "reward"
 
-    def grade(self, run_dir: Path | str, gold: dict) -> dict:
+    def grade(self, run_dir: Path | str, gold: dict, *, mode: str = "harness",
+              budget: int | None = None, reserve: int | None = None) -> dict:
+        """Grade one run. ``budget``/``reserve`` are the task's (harness, legacy)."""
+        if mode not in GRADE_MODES:
+            raise ValueError(f"unknown grade mode {mode!r}")
+        self.check_gold(gold)
+        try:
+            source = read_context(run_dir, mode=mode)
+            info: dict[str, Any] = {}
+            if mode != "oracle":
+                info = check_budget(source, budget, reserve,
+                                    strict_tokens=(mode == "harness"))
+            result = self.score(source, gold)
+        except InvalidRun as exc:
+            out = self._invalid(_GRADED_FROM[mode], str(exc))
+            out["grade_mode"] = mode
+            if budget is not None:
+                out["budget_tokens"] = float(budget)
+            return out
+        result.update({
+            "n_snapshots": float(source.n_snapshots),
+            "graded_from": source.graded_from,
+            "grade_mode": mode,
+            "grader_valid": 1.0,
+        })
+        result.update(info)
+        result.update(self._token_stats(source.tokens))
+        if source.terminated_by is not None:
+            result["terminated_by"] = source.terminated_by
+        return result
+
+    def check_gold(self, gold: dict) -> None:
+        """Raise ``ValueError`` for a gold this grader must not guess around."""
+
+    def score(self, source: ContextSource, gold: dict) -> dict:
+        """The family's rewards for a checked source; raise :class:`InvalidRun`."""
         raise NotImplementedError
 
-    def grade_path(self, run_dir: Path | str, gold_path: Path | str) -> dict:
+    def grade_path(self, run_dir: Path | str, gold_path: Path | str,
+                   **kwargs: Any) -> dict:
         gold = json.loads(Path(gold_path).read_text(encoding="utf-8"))
-        return self.grade(run_dir, gold)
+        return self.grade(run_dir, gold, **kwargs)
 
     # -- helpers shared by the concrete graders --------------------------------
     @staticmethod
@@ -298,7 +606,7 @@ class Grader:
     def _invalid(graded_from: str, why: str) -> dict:
         """A grade that could not be computed: never reported as a zero score."""
         return {
-            "reward": 0.0,
+            "reward": None,
             "grader_valid": 0.0,
             "graded_from": graded_from,
             "grader_note": why,

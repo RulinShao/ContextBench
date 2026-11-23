@@ -6,18 +6,20 @@ The agent answers each ``QUERY <n>`` by emitting an ANSWER block::
     timeout retry connection refused #ab12cd34      (lookup)
     <<<ANSWER END>>>
 
-Every per-turn context frame is scanned, all ANSWER blocks are collected as
-``qid -> {answer strings}``, and the score is the fraction of gold queries answered
-correctly. Matching is per type:
+Every per-turn context frame is scanned for ANSWER blocks in what the agent produced
+(assistant messages and tool output; never the instruction or the ops). Each query
+has **one** answer: the last block for its qid, in turn order and then in message
+order within the turn, so a later answer replaces an earlier one. The score is the
+fraction of gold queries answered correctly. Matching is per type:
 
-* ``lookup`` -- the exact message string must appear in the agent's answer, as a
-  whitespace-normalized substring, so adding a label does not cost a point;
-* ``count`` -- the integer must appear as a standalone token in the answer.
+* ``lookup`` -- the answer must equal the gold message after whitespace
+  normalization (a list of candidates, or extra text around the message, is wrong);
+* ``count`` -- the answer must state exactly one number, equal to the gold integer.
 
 A gold message ends in a random ``#<hex>`` uniqueness tag that a model treats as a
 noise id and usually drops. Lookup grading measures retrieval -- did the agent
 surface the right log line's message -- not whether it parrots that tag, so a
-trailing tag is stripped before matching.
+trailing tag is stripped from both the gold and the answer before matching.
 
 Rewards: ``reward``, ``reward_lookup`` / ``reward_count`` per type,
 ``reward_attempted`` over the queries answered at all, and the per-turn context size.
@@ -26,9 +28,8 @@ Rewards: ``reward``, ``reward_lookup`` / ``reward_count`` per type,
 from __future__ import annotations
 
 import re
-from pathlib import Path
 
-from .base import ContextSource, Grader, messages_text, normalize, read_context
+from .base import ContextSource, Grader, InvalidRun, normalize
 
 __all__ = ["LogTriageGrader", "ANSWER_RE"]
 
@@ -45,30 +46,28 @@ _TAG_RE = re.compile(r"\s*#[0-9a-f]+\s*$")
 _NUMBER_RE = re.compile(r"[-+]?\d+(?:\.\d+)?")
 
 
-def _count_correct(want: str, answers: set[str]) -> bool:
-    """A count is correct when an answer states exactly one number and it equals the
+def _count_correct(want: str, answer: str) -> bool:
+    """A count is correct when the answer states exactly one number and it equals the
     gold integer. ``-5``, ``5.9`` or a hedge such as ``5 or 6`` is not ``5``."""
-    return any(_NUMBER_RE.findall(a) == [want] for a in answers)
+    return _NUMBER_RE.findall(answer) == [want]
 
 
-def _lookup_correct(want: str, answers: set[str]) -> bool:
-    core = _TAG_RE.sub("", want).strip()
+def _lookup_correct(want: str, answer: str) -> bool:
+    """The answer is the gold message (normalized, trailing ``#hex`` tag optional)."""
+    core = _TAG_RE.sub("", normalize(want)).strip()
     if not core:
         return False
-    return any(core in a for a in answers)
+    return _TAG_RE.sub("", normalize(answer)).strip() == core
 
 
 class LogTriageGrader(Grader):
     family = "log_triage"
 
-    def grade(self, run_dir: Path | str, gold: dict) -> dict:
+    def score(self, source: ContextSource, gold: dict) -> dict:
         queries = gold.get("queries") or []
         total = len(queries)
-        source = read_context(run_dir)
         if total == 0:
-            return self._invalid(source.graded_from, "gold has no queries")
-        if source.graded_from == "none":
-            return self._invalid("none", "no context snapshots, trajectory or report")
+            raise InvalidRun("gold has no queries")
 
         answers = self._collect(source)
         correct = answered = 0
@@ -79,14 +78,14 @@ class LogTriageGrader(Grader):
             qtype = q.get("type", "lookup")
             want = normalize(str(q["answer"]))
             by_type_total[qtype] = by_type_total.get(qtype, 0) + 1
-            seen = answers.get(qid)
-            if not seen:
+            got = answers.get(qid)
+            if got is None:
                 continue
             answered += 1
             ok = (
-                _count_correct(want, seen)
+                _count_correct(want, got)
                 if qtype == "count"
-                else _lookup_correct(want, seen)
+                else _lookup_correct(want, got)
             )
             if ok:
                 correct += 1
@@ -96,7 +95,7 @@ class LogTriageGrader(Grader):
             n = by_type_total.get(t, 0)
             return (by_type_correct.get(t, 0) / n) if n else 0.0
 
-        result = {
+        return {
             "reward": correct / total,
             "reward_lookup": _rate("lookup"),
             "reward_count": _rate("count"),
@@ -104,17 +103,13 @@ class LogTriageGrader(Grader):
             "n_answered": float(answered),
             "matched": float(correct),
             "total": float(total),
-            "n_snapshots": float(source.n_snapshots),
-            "graded_from": source.graded_from,
-            "grader_valid": 1.0,
         }
-        result.update(self._token_stats(source.tokens))
-        return result
 
     @staticmethod
-    def _collect(source: ContextSource) -> dict[str, set[str]]:
-        answers: dict[str, set[str]] = {}
-        for frame in source.frames:
-            for qid, val in ANSWER_RE.findall(messages_text(frame)):
-                answers.setdefault(qid.strip(), set()).add(normalize(val))
+    def _collect(source: ContextSource) -> dict[str, str]:
+        """``qid -> normalized answer``: the last ANSWER block for each qid."""
+        answers: dict[str, str] = {}
+        for text in source.answer_texts():
+            for qid, val in ANSWER_RE.findall(text):
+                answers[qid.strip()] = normalize(val)
         return answers

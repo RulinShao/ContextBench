@@ -20,7 +20,14 @@ from the container), the readiness rule, the early-submit refusal, the terminal
 reason, ``interactive_stream.json`` and the ``context_snapshots/turn-NNNN.json`` the
 graders read. ``cb_over_budget`` both snapshots the context you are about to send
 and enforces the budget wall on it; call it right before every model call (or where
-your loop sends), and call :meth:`cb_finish` in a ``finally``.
+your loop sends), and call :meth:`cb_finish` in a ``finally``: it writes the closing
+line of the snapshot manifest, without which the run is graded as invalid.
+
+The snapshots go to a host-only root, ``<trial_dir>/contextbench_harness/`` (see
+:func:`contextbench.tokens.harness_dir_for`), not to the logs dir Harbor mounts into
+the container at ``/logs/agent``, so the agent can neither read nor plant them. Set
+``cb_snapshot_root`` before ``cb_setup`` to put them elsewhere. A snapshot that cannot
+be written raises :class:`contextbench.tokens.SnapshotWriteError`.
 """
 
 from __future__ import annotations
@@ -28,7 +35,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from ..tokens import count_tokens, record_snapshot
+from ..tokens import SnapshotLog, harness_dir_for
 from .turn_source import TurnSource
 
 __all__ = ["CBStreamMixin"]
@@ -42,6 +49,8 @@ class CBStreamMixin:
     #: Budget of record; override per instance with ``cb_setup(budget=...)``.
     cb_budget: int = 32768
     cb_reserve: int = 2048
+    #: Where the snapshots go; ``None``: ``harness_dir_for(self.logs_dir)``.
+    cb_snapshot_root: Path | None = None
 
     # ------------------------------------------------------------------ setup
     async def cb_setup(self, environment: Any, *, budget: int | None = None,
@@ -51,8 +60,13 @@ class CBStreamMixin:
             self.cb_budget = int(budget)
         if reserve is not None:
             self.cb_reserve = int(reserve)
+        root = Path(self.cb_snapshot_root) if self.cb_snapshot_root else \
+            harness_dir_for(self.logs_dir)
+        self.cb_snapshots = SnapshotLog(root)
         self.cb_source = await TurnSource.load(
             environment, logs_dir=self.logs_dir, **load_kwargs)
+        self.cb_source.harness_dir = root
+        self.cb_source.write()
         self._cb_snap_step = 0
         self.cb_peak_tokens = 0
         return self.cb_source
@@ -88,18 +102,23 @@ class CBStreamMixin:
     # ------------------------------------------------------ snapshots and wall
     def cb_snapshot(self, messages: list[Any], kind: str = "sent",
                     extra: dict[str, Any] | None = None) -> int:
-        """Write ``context_snapshots/turn-NNNN.json``; returns its token count."""
+        """Write ``context_snapshots/turn-NNNN.json``; returns its token count.
+
+        Raises :class:`~contextbench.tokens.SnapshotWriteError` if it cannot be
+        written (the run is then graded as invalid)."""
         src = self.cb_turn_source
-        tokens, _ = count_tokens(messages)
-        self.cb_peak_tokens = max(getattr(self, "cb_peak_tokens", 0), tokens)
+        log = getattr(self, "cb_snapshots", None)
+        if log is None:
+            raise RuntimeError("cb_snapshot before cb_setup: no snapshot log")
         step = getattr(self, "_cb_snap_step", 0)
-        record_snapshot(
-            self.logs_dir, step, list(messages),
+        self._cb_snap_step = step + 1
+        _, tokens = log.record(
+            step, list(messages),
             {"kind": kind, "n_ops_delivered": src.n_delivered if src else 0,
              "n_ops_total": src.n_total if src else 0,
              "budget": self.cb_budget, "reserve": self.cb_reserve, **(extra or {})},
         )
-        self._cb_snap_step = step + 1
+        self.cb_peak_tokens = max(getattr(self, "cb_peak_tokens", 0), tokens)
         return tokens
 
     def cb_over_budget(self, messages: list[Any]) -> bool:
@@ -111,12 +130,19 @@ class CBStreamMixin:
 
     def cb_finish(self, reason: str | None = None,
                   messages: list[Any] | None = None) -> None:
-        """Record a terminal reason if none was set, snapshot the final context."""
+        """Record a terminal reason if none was set, snapshot the final context, and
+        close the snapshot manifest (the graders require the closing line)."""
         src = self.cb_turn_source
         if src is None:
             return
         if reason and not src.done:
             src.terminate(reason)
-        if messages is not None:
-            self.cb_snapshot(messages, "final")
-        src.write()
+        try:
+            if messages is not None:
+                self.cb_snapshot(messages, "final")
+        finally:
+            src.write()
+            log = getattr(self, "cb_snapshots", None)
+            if log is not None:
+                log.close(terminated_by=src.terminated_by,
+                          n_ops_delivered=src.n_delivered, n_ops_total=src.n_total)

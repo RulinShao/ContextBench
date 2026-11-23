@@ -23,9 +23,13 @@ instance_records_per_chunk = 100
 instance_seed = 49
 instance_task_family = "kv_store"
 instance_value_words = 24
+contextbench_verifier = "contextbench.harbor.verifiers:ContextBenchVerifier"
 
 [verifier]
+# Grade on the host: --verifier contextbench.harbor.verifiers:ContextBenchVerifier
+# (tests/test.sh only refuses). "shared": the host verifier needs no container.
 timeout_sec = 600.0
+environment_mode = "shared"
 
 [agent]
 timeout_sec = 14400.0
@@ -37,6 +41,12 @@ build_timeout_sec = 600.0
 cpus = 1
 memory_mb = 2048
 storage_mb = 4096
+# Harbor's default, stated explicitly. Agents that run inside the container
+# (codex, mini-swe-agent) reach the model endpoint from it, and Singularity /
+# Apptainer cannot enforce "no-network" or "allowlist" (Harbor refuses such a
+# task there). Host-side harnesses need no network in the container: where the
+# provider enforces it, set network_mode = "no-network" for them.
+network_mode = "public"
 
 [environment.env]
 CONTEXTBENCH_STREAM_COUNT = "64"

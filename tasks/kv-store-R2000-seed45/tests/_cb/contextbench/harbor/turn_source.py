@@ -16,7 +16,10 @@ so the delivery rules cannot drift between harnesses:
   :data:`contextbench.stream.REFUSE_SUBMIT_TEXT`;
 * ``terminated_by`` and the delivery log are written to
   ``<logs_dir>/interactive_stream.json`` after every change, so a run that is
-  killed still leaves an accurate record.
+  killed still leaves an accurate record. A harness that keeps a host-only snapshot
+  root sets :attr:`TurnSource.harness_dir`, and the record is written there too; the
+  graders read that copy (and the closing line of the snapshot manifest), never the
+  one in the agent-visible logs dir.
 
 The class is harness-agnostic: it never touches the message list. A harness asks
 :meth:`TurnSource.pending` what to append after a tool result and appends the
@@ -125,6 +128,8 @@ class TurnSource:
 
     ops: list[Op]
     logs_dir: Path | None = None
+    #: The host-only snapshot root, when the harness keeps one (also gets the record).
+    harness_dir: Path | None = None
     #: How the stream was verified: ``{"count", "sha256", "path", "removed"}``.
     identity: dict[str, Any] = field(default_factory=dict)
 
@@ -377,17 +382,22 @@ class TurnSource:
         }
 
     def write(self, logs_dir: Path | str | None = None) -> Path | None:
-        """Write ``interactive_stream.json``. Best effort: never raises."""
-        target = Path(logs_dir) if logs_dir else self.logs_dir
-        if target is None:
-            return None
-        try:
-            target.mkdir(parents=True, exist_ok=True)
-            out = target / STREAM_RECORD_NAME
-            out.write_text(json.dumps(self.record(), indent=2) + "\n", encoding="utf-8")
-            return out
-        except Exception:
-            return None
+        """Write ``interactive_stream.json`` (to ``logs_dir``, else to the logs dir and
+        the harness dir). Best effort: never raises; returns the logs-dir copy."""
+        targets = [Path(logs_dir)] if logs_dir else [
+            t for t in (self.logs_dir, self.harness_dir) if t is not None]
+        first: Path | None = None
+        for i, target in enumerate(targets):
+            try:
+                target.mkdir(parents=True, exist_ok=True)
+                out = target / STREAM_RECORD_NAME
+                out.write_text(json.dumps(self.record(), indent=2) + "\n",
+                               encoding="utf-8")
+                if i == 0:
+                    first = out
+            except Exception:
+                continue
+        return first
 
 
 def _task_env(environment: Any) -> dict[str, str]:

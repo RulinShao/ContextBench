@@ -9,7 +9,9 @@ The agent answers each ``QUERY <n>`` by emitting an ANSWER block::
 Every per-turn context frame is scanned for ANSWER blocks in what the agent produced
 (assistant messages and tool output; never the instruction or the ops). Each query
 has **one** answer: the last block for its qid, in turn order and then in message
-order within the turn, so a later answer replaces an earlier one. The score is the
+order within the turn, so a later answer replaces an earlier one. A block's markers
+must each start a line, as the instruction shows them (an inline mention of the
+format is not an answer). The score is the
 fraction of gold queries answered correctly. Matching is per type:
 
 * ``lookup`` -- the answer must equal the gold message after whitespace
@@ -31,11 +33,20 @@ import re
 
 from .base import ContextSource, Grader, InvalidRun, normalize
 
-__all__ = ["LogTriageGrader", "ANSWER_RE"]
+__all__ = ["LogTriageGrader", "ANSWER_RE", "BLOCK_RE"]
 
 ANSWER_RE = re.compile(
     r"<<<\s*ANSWER\s+qid\s*=\s*([0-9]+)\s*>>>(.*?)<<<\s*ANSWER\s+END\s*>>>",
     re.DOTALL | re.IGNORECASE,
+)
+
+#: The block as the instruction specifies it -- each marker at the start of its own
+#: line -- which is what the grader scores. An inline mention of the markers (a
+#: summary quoting the format, a ``printf`` literal, a shell echo of the command) is
+#: not an answer.
+BLOCK_RE = re.compile(
+    r"^[ \t]*<<<[ \t]*ANSWER[ \t]+qid[ \t]*=[ \t]*([0-9]+)[ \t]*>>>(.*?)^[ \t]*<<<[ \t]*ANSWER[ \t]+END[ \t]*>>>",
+    re.DOTALL | re.IGNORECASE | re.MULTILINE,
 )
 
 #: The trailing uniqueness tag of a gold message.
@@ -110,6 +121,6 @@ class LogTriageGrader(Grader):
         """``qid -> normalized answer``: the last ANSWER block for each qid."""
         answers: dict[str, str] = {}
         for text in source.answer_texts():
-            for qid, val in ANSWER_RE.findall(text):
+            for qid, val in BLOCK_RE.findall(text):
                 answers[qid.strip()] = normalize(val)
         return answers

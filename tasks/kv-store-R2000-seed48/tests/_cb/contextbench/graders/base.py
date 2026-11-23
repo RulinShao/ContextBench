@@ -228,7 +228,7 @@ def resolve_snapshot_root(path: Path | str) -> Path:
     Never searches an agent's logs dir: a manifest planted there is not a root.
     """
     path = Path(path)
-    if (path / MANIFEST_NAME).is_file():
+    if (path / MANIFEST_NAME).is_file() or path.name == HARNESS_DIRNAME:
         return path
     return path / HARNESS_DIRNAME
 
@@ -324,6 +324,8 @@ def read_legacy_snapshots(agent_dir: Path | str) -> ContextSource:
     sat in the agent's logs dir, so this mode is for re-grading trials whose
     provenance has been checked by other means (``tools/audit_trial.py``). Every file
     must parse; ``terminated_by`` comes from ``<agent_dir>/interactive_stream.json``.
+    Terminus2Stream snapshots (recognized by ``summarization_count``) get
+    ``tool_output_in_user_turns``, which that harness now records itself.
     """
     agent_dir = Path(agent_dir)
     snap_dir = agent_dir / SNAPSHOT_DIRNAME
@@ -340,9 +342,15 @@ def read_legacy_snapshots(agent_dir: Path | str) -> ContextSource:
         messages = obj.get("messages") if isinstance(obj, dict) else None
         if not isinstance(messages, list):
             raise InvalidRun(f"{path.name} has no message list")
+        rec = {k: v for k, v in obj.items() if k != "messages"}
+        # Terminus2Stream snapshots written before the flag existed: that harness
+        # alone records ``summarization_count``, and its user turns after the first
+        # are always the terminal screen.
+        if "summarization_count" in rec:
+            rec.setdefault("tool_output_in_user_turns", True)
         frames.append(messages)
         tokens.append(int(obj.get("tokens") or 0))
-        records.append({k: v for k, v in obj.items() if k != "messages"})
+        records.append(rec)
     if not frames:
         raise InvalidRun(f"no turn-*.json snapshots in {snap_dir}")
     terminated_by = None
@@ -401,9 +409,13 @@ def check_budget(source: ContextSource, budget: int | None, reserve: int | None,
       larger than the task's (a stricter wall), never smaller.
     * The grader recounts every frame. With ``strict_tokens``, a recorded count made
       with the grader's own token method must equal the recount.
-    * No frame may exceed the budget, except frames at the very end of a run whose
-      harness recorded ``terminated_by="budget_wall"`` (the context that hit the wall
-      is recorded before the run stops). An agent may enforce a stricter wall.
+    * The budget bounds the context *sent* to the model. When a run records
+      ``kind="sent"`` snapshots, those are the frames checked (a post-reply or
+      pre-compaction snapshot holds a sent context plus one reply or tool result, and
+      may exceed the budget); otherwise every frame is checked. No checked frame may
+      exceed the budget, except checked frames at the very end of a run whose harness
+      recorded ``terminated_by="budget_wall"`` (the context that hit the wall is
+      recorded before the run stops). An agent may enforce a stricter wall.
 
     On success ``source.tokens`` holds the grader's counts; returns the numbers the
     reward records.
@@ -440,9 +452,11 @@ def check_budget(source: ContextSource, budget: int | None, reserve: int | None,
             verified = False
             tok = max(recount, int(recorded or 0))
         counted.append(tok)
-    over = [i for i, t in enumerate(counted) if t > budget]
+    sent = [i for i, rec in enumerate(source.records) if rec.get("kind") == "sent"]
+    checked = sent or list(range(len(counted)))
+    over = [i for i in checked if counted[i] > budget]
     if over:
-        tail = over == list(range(over[0], len(counted)))
+        tail = over == checked[checked.index(over[0]):]
         if not (tail and source.terminated_by == "budget_wall"):
             i = over[0]
             raise InvalidRun(f"snapshot {i} holds {counted[i]} tokens, over the task "

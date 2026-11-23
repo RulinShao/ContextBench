@@ -9,7 +9,9 @@ The agent answers each ``GET <key>`` by emitting an ANSWER block::
 Every per-turn context frame is scanned for ANSWER blocks in what the agent produced
 (assistant messages and tool output; never the instruction or the ops). Each key has
 **one** answer: the last block for it, in turn order and then in message order
-within the turn, so a later answer replaces an earlier one. The answer is correct
+within the turn, so a later answer replaces an earlier one. A block's markers must
+each start a line, as the instruction shows them (an inline mention of the format is
+not an answer). The answer is correct
 when it equals the gold value after whitespace normalization; the score is the
 fraction of gold GET queries answered correctly.
 
@@ -32,12 +34,21 @@ import re
 
 from .base import ContextSource, Grader, InvalidRun, normalize
 
-__all__ = ["KVStoreGrader", "ANSWER_RE"]
+__all__ = ["KVStoreGrader", "ANSWER_RE", "BLOCK_RE"]
 
 #: ``<<<ANSWER key=K00007>>> ... <<<ANSWER END>>>``; the key may carry spaces.
 ANSWER_RE = re.compile(
     r"<<<\s*ANSWER\s+key\s*=\s*([^\s>]+)\s*>>>(.*?)<<<\s*ANSWER\s+END\s*>>>",
     re.DOTALL | re.IGNORECASE,
+)
+
+#: The block as the instruction specifies it -- each marker at the start of its own
+#: line -- which is what the grader scores. An inline mention of the markers (a
+#: summary quoting the format, a ``printf`` literal, a shell echo of the command) is
+#: not an answer.
+BLOCK_RE = re.compile(
+    r"^[ \t]*<<<[ \t]*ANSWER[ \t]+key[ \t]*=[ \t]*([^\s>]+)[ \t]*>>>(.*?)^[ \t]*<<<[ \t]*ANSWER[ \t]+END[ \t]*>>>",
+    re.DOTALL | re.IGNORECASE | re.MULTILINE,
 )
 
 
@@ -75,6 +86,6 @@ class KVStoreGrader(Grader):
         """``key -> normalized answer``: the last ANSWER block for each key."""
         answers: dict[str, str] = {}
         for text in source.answer_texts():
-            for key, val in ANSWER_RE.findall(text):
+            for key, val in BLOCK_RE.findall(text):
                 answers[normalize(key)] = normalize(val)
         return answers

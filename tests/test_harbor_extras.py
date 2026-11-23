@@ -68,24 +68,24 @@ def test_build_all_keeps_descriptive_keys_out_of_the_generator(tmp_path: Path) -
     assert [t.name for t in main_only] == ["kv-store-R130-seed42"]
 
 
-def _run_task_grader(task: Path, agent_dir: Path, out: Path) -> dict:
-    """Run tests/test.sh's grader exactly as the container would: vendored copy only."""
+def _run_vendored_grader(task: Path, run_dir: Path, out: Path, *extra: str) -> int:
+    """The copy shipped in tests/_cb, run isolated (-I) with only that copy importable."""
     env = {k: v for k, v in os.environ.items() if k not in ("PYTHONPATH",)}
-    env["PYTHONPATH"] = str(task / "tests" / "_cb")
-    subprocess.run(
-        [sys.executable, "-m", "contextbench.harbor.reward", "--agent-dir", str(agent_dir),
-         "--gold", str(task / "tests" / "gold.json"), "--out-dir", str(out)],
-        check=True, env=env, cwd=str(out.parent), capture_output=True, text=True)
-    return json.loads((out / "reward.json").read_text())
+    code = ("import sys; sys.path.insert(0, sys.argv.pop(1)); "
+            "from contextbench.harbor.reward import main; sys.exit(main())")
+    res = subprocess.run(
+        [sys.executable, "-I", "-c", code, str(task / "tests" / "_cb"),
+         "--run-dir", str(run_dir), "--task-dir", str(task), "--out-dir", str(out),
+         *extra],
+        env=env, cwd=str(out.parent), capture_output=True, text=True)
+    return res.returncode
 
 
-def test_task_grades_itself_from_the_vendored_copy(tmp_path: Path, instance: Path,
-                                                   family: str) -> None:
+def test_vendored_copy_grades_offline(tmp_path: Path, instance: Path,
+                                      family: str) -> None:
+    """tests/_cb grades a trial on a host without the package installed."""
     task = build_task(instance, tmp_path / "tasks", image="python:3.12-slim",
                       require_feasible=False)
-    test_sh = (task / "tests" / "test.sh").read_text()
-    assert "contextbench.harbor.reward" in test_sh and "/tests/gold.json" in test_sh
-    # The oracle's report, graded by the copy shipped inside the task.
     import re
 
     solve = (task / "solution" / "solve.sh").read_text()
@@ -93,12 +93,18 @@ def test_task_grades_itself_from_the_vendored_copy(tmp_path: Path, instance: Pat
     agent = tmp_path / "logs" / "agent"
     agent.mkdir(parents=True)
     (agent / "final_report.txt").write_text(report + "\n")
-    rewards = _run_task_grader(task, agent, tmp_path / "logs" / "verifier")
+    out = tmp_path / "logs" / "verifier"
+    out.mkdir()
+    assert _run_vendored_grader(task, agent, out, "--mode", "oracle") == 0
+    rewards = json.loads((out / "reward.json").read_text())
     assert rewards["reward"] == pytest.approx(1.0)
     assert rewards["graded_from_code"] == 1
     assert all(isinstance(v, (int, float)) for v in rewards.values())
-    full = json.loads((tmp_path / "logs" / "verifier" / "contextbench_result.json").read_text())
+    full = json.loads((out / "contextbench_result.json").read_text())
     assert full["graded_from"] == "final_report"
+    # The same report is not a scored run: harness mode finds no snapshots.
+    assert _run_vendored_grader(task, agent, out) == 2
+    assert not (out / "reward.json").exists()
 
 
 # ------------------------------------------------------------------------- mixin
@@ -137,10 +143,16 @@ def test_mixin_drives_a_plain_loop(tmp_path: Path) -> None:
     assert messages[4]["content"] == REFUSE_SUBMIT_TEXT  # right after the tool result
     ops = [m for m in messages if m["role"] == "user" and m["content"].startswith("=== ")]
     assert len(ops) == n
-    snaps = sorted((tmp_path / "logs" / "context_snapshots").glob("turn-*.json"))
+    # Snapshots go to the host-only root next to the logs dir, never into it.
+    assert not (tmp_path / "logs" / "context_snapshots").exists()
+    root = tmp_path / "contextbench_harness"
+    snaps = sorted((root / "context_snapshots").glob("turn-*.json"))
     assert snaps and json.loads(snaps[-1].read_text())["kind"] == "final"
-    rec = json.loads((tmp_path / "logs" / "interactive_stream.json").read_text())
-    assert rec["terminated_by"] == "stream_exhausted"
+    for d in (tmp_path / "logs", root):
+        rec = json.loads((d / "interactive_stream.json").read_text())
+        assert rec["terminated_by"] == "stream_exhausted"
+    last = json.loads((root / "snapshot_manifest.jsonl").read_text().splitlines()[-1])
+    assert last["closed"] and last["terminated_by"] == "stream_exhausted"
 
 
 def test_mixin_budget_wall(tmp_path: Path) -> None:

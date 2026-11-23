@@ -3,23 +3,30 @@
 Layout written into ``<out_dir>/<name>/``::
 
     instruction.md                 family scaffold (bash delivery) [+ method section]
-    task.toml                      docker_image, workdir, stream identity, timeouts
+    task.toml                      docker_image, workdir, stream identity, budget,
+                                   timeouts, verifier and network settings
     environment/stream/chunks.jsonl  the ops; uploaded into the container work dir
     tests/gold.json                never in the agent's container (see below)
     tests/meta.json
     tests/feasibility_receipt.json
-    tests/test.sh                  grades /logs/agent with the vendored graders
-    tests/_cb/contextbench/        the graders, standard library only
+    tests/test.sh                  refuses to grade (see below)
+    tests/_cb/contextbench/        the graders, standard library only, for offline
+                                   re-grading of a trial without installing the package
     solution/solve.sh              oracle: writes the gold answers as a final report
 
 What the agent can see inside the container: the work directory (with the stream
 until :class:`~contextbench.harbor.turn_source.TurnSource` loads and removes it at
 the start of ``run()``) and ``/logs``. Harbor copies ``tests/`` into the container
-only after the agent has finished, to run ``tests/test.sh`` (its default verifier,
-so a trial needs no verifier flag), and ``solution/`` only for its oracle agent. The
-gold therefore never reaches the agent. ``test.sh`` needs ``python3`` in the image;
-for an image without it, grade on the host with
-``contextbench.harbor.verifiers:ContextBenchVerifier``.
+only after the agent has finished, and ``solution/`` only for its oracle agent. The
+gold therefore never reaches the agent through the task (it is public, though: see
+the network note in :func:`_task_toml`).
+
+Grading happens on the host only, with
+``--verifier contextbench.harbor.verifiers:ContextBenchVerifier``: the harness writes
+the context snapshots to ``<trial_dir>/contextbench_harness/``, which is not mounted
+into the container. ``tests/test.sh`` -- what Harbor runs when no verifier is given
+-- runs no interpreter from the container: it removes any reward file left in
+``/logs/verifier`` and exits non-zero, so such a trial has no reward at all.
 
 This module imports nothing from Harbor; the task is plain files.
 """
@@ -50,7 +57,7 @@ __all__ = ["DEFAULT_WORKDIR", "VERIFIER_IMPORT_PATH", "build_all", "build_task",
 #: The container work directory; the stream lands at ``<workdir>/stream/``.
 DEFAULT_WORKDIR = "/app"
 
-#: What a trial or job config sets as ``verifier.import_path`` for these tasks.
+#: The verifier every trial of these tasks must run with (``--verifier``).
 VERIFIER_IMPORT_PATH = "contextbench.harbor.verifiers:ContextBenchVerifier"
 
 _FAMILY_TAGS = {
@@ -61,17 +68,17 @@ _FAMILY_TAGS = {
 }
 
 _TEST_SH = """#!/usr/bin/env bash
-# Grades the agent's own messages (context snapshots, else trajectory, else final
-# report) with the ContextBench graders vendored next to this script. Runs after the
-# agent has finished; writes /logs/verifier/reward.json.
-set -u
-PY=$(command -v python3 || command -v python) || {
-  echo "ContextBench grading needs python3 in the image; or verify on the host with" \
-       "contextbench.harbor.verifiers:ContextBenchVerifier" >&2
-  exit 2
-}
-PYTHONPATH=/tests/_cb "$PY" -m contextbench.harbor.reward \
-  --agent-dir /logs/agent --gold /tests/gold.json --out-dir /logs/verifier
+# ContextBench tasks are graded on the host, never in the agent's container. Run
+#   harbor ... --verifier contextbench.harbor.verifiers:ContextBenchVerifier
+# The harness writes the context snapshots to <trial_dir>/contextbench_harness/, which
+# is not mounted here, so nothing in this container can produce a valid score. This
+# script runs no interpreter from the container: it removes any reward file the agent
+# may have left in /logs/verifier and exits non-zero, so the trial has no reward.
+cd /tests || exit 3
+/bin/rm -f /logs/verifier/reward.json /logs/verifier/reward.txt
+echo "ContextBench: tests/test.sh does not grade. Grade on the host with" >&2
+echo "  --verifier contextbench.harbor.verifiers:ContextBenchVerifier" >&2
+exit 3
 """
 
 #: The package files ``tests/_cb`` needs to grade: standard library only.
@@ -186,10 +193,14 @@ def _task_toml(
         rendered = _toml_value(value)
         if rendered is not None and re.fullmatch(r"[A-Za-z0-9_]+", key):
             lines.append(f"instance_{key} = {rendered}")
+    lines.append(f"contextbench_verifier = {_toml_str(VERIFIER_IMPORT_PATH)}")
     lines += [
         "",
         "[verifier]",
+        "# Grade on the host: --verifier contextbench.harbor.verifiers:ContextBenchVerifier",
+        "# (tests/test.sh only refuses). \"shared\": the host verifier needs no container.",
         f"timeout_sec = {float(verifier_timeout_sec)}",
+        'environment_mode = "shared"',
         "",
         "[agent]",
         f"timeout_sec = {float(agent_timeout_sec)}",
@@ -201,6 +212,12 @@ def _task_toml(
         "cpus = 1",
         "memory_mb = 2048",
         "storage_mb = 4096",
+        "# Harbor's default, stated explicitly. Agents that run inside the container",
+        "# (codex, mini-swe-agent) reach the model endpoint from it, and Singularity /",
+        "# Apptainer cannot enforce \"no-network\" or \"allowlist\" (Harbor refuses such a",
+        "# task there). Host-side harnesses need no network in the container: where the",
+        "# provider enforces it, set network_mode = \"no-network\" for them.",
+        'network_mode = "public"',
         "",
         "[environment.env]",
         f"{ENV_STREAM_COUNT} = {_toml_str(stream_count)}",
@@ -297,7 +314,9 @@ def build_task(
     solve.write_text(
         "#!/usr/bin/env bash\n"
         "# Oracle: writes every gold answer into the agent log dir as a final report.\n"
-        "# Graded as graded_from=final_report, never comparable to a context grade.\n"
+        "# Graded only by --verifier contextbench.harbor.verifiers:ContextBenchVerifier\n"
+        "# --verifier-kwarg mode=oracle, for trials run with -a oracle; graded_from=\n"
+        "# final_report, never comparable to a context grade.\n"
         "set -euo pipefail\n"
         "mkdir -p /logs/agent\n"
         f"cat > /logs/agent/final_report.txt <<'{delim}'\n{report}{delim}\n",

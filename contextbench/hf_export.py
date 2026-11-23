@@ -213,7 +213,8 @@ them in one line:
 
 ```bash
 harbor jobs start --repo {harbor_repo} -d contextbench \\
-    -a contextbench.harbor.agents:Terminus2Stream -m <model>
+    -a contextbench.harbor.agents:Terminus2Stream -m <model> \\
+    --verifier contextbench.harbor.verifiers:ContextBenchVerifier
 ```
 
 Or download this repository and run Harbor from inside it:
@@ -222,13 +223,17 @@ Or download this repository and run Harbor from inside it:
 hf download {repo_id} --repo-type dataset --local-dir contextbench-hf
 cd contextbench-hf
 harbor jobs start --registry-path registry.json -d contextbench \\
-    -a contextbench.harbor.agents:Terminus2Stream -m <model>
+    -a contextbench.harbor.agents:Terminus2Stream -m <model> \\
+    --verifier contextbench.harbor.verifiers:ContextBenchVerifier
 ```
 
-Use `-d contextbench-sudoku-sketchpad` for one family, `-i <task_id>` for one task,
-`-p harbor/` to run the downloaded directory without the registry, or `-a oracle` to
-check a task with its reference solution. Agents that deliver operations into a running
-conversation ship with the `contextbench` package (`contextbench.harbor.agents`).
+Tasks are graded on the host by `contextbench.harbor.verifiers:ContextBenchVerifier`
+(the `contextbench` package); without `--verifier`, a task's `tests/test.sh` writes no
+reward. Use `-d contextbench-sudoku-sketchpad` for one family, `-i <task_id>` for one
+task, `-p harbor/` to run the downloaded directory without the registry, or `-a oracle`
+with `--verifier-kwarg mode=oracle` to check a task with its reference solution. Agents
+that deliver operations into a running conversation ship with the `contextbench`
+package (`contextbench.harbor.agents`).
 
 ## Citation
 

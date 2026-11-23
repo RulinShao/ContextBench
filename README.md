@@ -92,8 +92,10 @@ recorded but does not end the run, even when it exceeds the budget.
 Graders read the per-turn context snapshots the harness wrote (`context_snapshots/turn-*.json`)
 and nothing else: there is no fallback to a trajectory or a report for a scored run.
 A snapshot is checked against the task's budget (`contextbench_budget_tokens` in
-`task.toml`): it must record that budget, and no snapshot may hold more tokens than the
-budget, except the context that hit the wall at the very end of a `budget_wall` run.
+`task.toml`): it must record that budget, and no context sent to the model (the
+`kind="sent"` snapshots, or every snapshot for a harness that records no such kind) may
+hold more tokens than the budget, except the context that hit the wall at the very end
+of a `budget_wall` run.
 The grader recounts every snapshot and records the budget in `reward.json`
 (`budget_tokens`, `reserve_tokens`).
 
@@ -101,7 +103,8 @@ ANSWER blocks (kv store, log triage) are read only from what the agent produced:
 assistant messages and tool output, never the instruction or the ops. Each question has
 one answer, the **last** block for it (latest snapshot first, then the later message in
 that snapshot), so an agent may correct an answer and a later wrong answer replaces a
-right one. A kv value and a log lookup must equal the gold after whitespace
+right one. A block counts only with each marker at the start of its own line, as the
+instruction shows it; a mention of the format inside other text is not an answer. A kv value and a log lookup must equal the gold after whitespace
 normalization (a log message's trailing `#hex` tag is optional); a count must state
 exactly one number. Needle retention reads the whole final snapshot and the sudoku
 grader every message of every snapshot, as before.

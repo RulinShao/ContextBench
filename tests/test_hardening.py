@@ -265,6 +265,19 @@ def test_last_answer_wins(tmp_path: Path, kv: dict) -> None:
     assert _grade(one, kv)["matched"] == 0.0
 
 
+def test_inline_mentions_of_the_format_are_not_answers(tmp_path: Path, kv: dict) -> None:
+    """A summary quoting the format, a printf literal or a shell echo of the command
+    must not replace the real answer under last-answer-wins."""
+    q = kv["queries"][0]
+    real = f"<<<ANSWER key={q['key']}>>>\n{q['value']}\n<<<ANSWER END>>>"
+    later = (f"Notes: use `<<<ANSWER key={q['key']}>>>` then the value.\n"
+             f"$ printf '<<<ANSWER key={q['key']}>>>\\n%s\\n<<<ANSWER END>>>\\n' \"$v\"\n"
+             f"Apptainer> printf '<<<ANSWER key={q['key']}>>>\n> %s\n> <<<ANSWER END>>>'")
+    root = _harness(tmp_path / "root", [[{"role": "tool", "content": real}],
+                                        [{"role": "assistant", "content": later}]])
+    assert _grade(root, kv)["matched"] == 1.0
+
+
 def test_user_text_is_never_an_answer(tmp_path: Path, kv: dict) -> None:
     """[O6] the instruction's example block (and any user/system text) is not parsed."""
     q = kv["queries"][0]
@@ -327,6 +340,35 @@ def test_over_budget_frame_mid_run_is_invalid(tmp_path: Path, kv: dict) -> None:
     # The same tail in a run that did not end at the wall: invalid.
     other = _harness(tmp_path / "c", [_op(), big], terminated_by="stream_exhausted")
     assert _grade(other, kv)["grader_valid"] == 0.0
+
+
+def test_budget_applies_to_sent_frames(tmp_path: Path, kv: dict) -> None:
+    """A post-reply snapshot (sent context + reply) may exceed the budget; a sent one
+    may not, unless it is the one that hit the wall at the end of the run."""
+    from contextbench.tokens import SnapshotLog
+
+    big = [{"role": "tool", "content": "word " * (TEST_BUDGET * 2)}]
+
+    def run(name: str, kinds: list[str], terminated_by: str) -> dict:
+        log = SnapshotLog(tmp_path / name)
+        for step, kind in enumerate(kinds):
+            frame = big if kind.endswith("!") else _op()
+            log.record(step, frame, {"kind": kind.rstrip("!"), "budget": TEST_BUDGET,
+                                     "reserve": TEST_RESERVE})
+        log.close(terminated_by=terminated_by)
+        return _grade(tmp_path / name, kv)
+
+    assert run("a", ["sent", "turn!", "sent", "turn"], "stream_exhausted")["grader_valid"] == 1.0
+    assert run("b", ["sent", "sent!", "sent"], "stream_exhausted")["grader_valid"] == 0.0
+    assert run("c", ["sent", "turn", "sent!", "final!"], "budget_wall")["grader_valid"] == 1.0
+
+
+def test_resolve_snapshot_root_never_doubles_the_dir(tmp_path: Path) -> None:
+    from contextbench.graders.base import resolve_snapshot_root
+
+    root = tmp_path / HARNESS
+    assert resolve_snapshot_root(root) == root
+    assert resolve_snapshot_root(tmp_path) == root
 
 
 def test_self_reported_token_count_is_checked(tmp_path: Path, kv: dict) -> None:

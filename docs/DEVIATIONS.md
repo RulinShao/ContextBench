@@ -128,9 +128,12 @@ and reward definitions of needle retention and sudoku are unchanged.
   is not the task's (`contextbench_budget_tokens`), a reserve below the task's, a
   recorded token count that differs from the grader's recount, or a snapshot over the
   budget (other than the wall-hitting tail of a `budget_wall` run) make the run invalid.
+  The size check applies to the `kind="sent"` snapshots when a run records them (the
+  context sent to the model), else to every snapshot.
 - **Answers (kv store, log triage).** Read from assistant messages and tool output
   only (terminus-2's terminal turns count as tool output: its snapshots say so). One
-  answer per question, the last one in snapshot order and then message order. kv values
+  answer per question, the last one in snapshot order and then message order, counting
+  only blocks whose markers each start a line (as the instruction shows them). kv values
   and log lookups must equal the gold after whitespace normalization (the trailing
   `#hex` tag of a log message is optional on both sides); counts must state exactly one
   number. Before, any block in any message of any snapshot could match, a kv value or

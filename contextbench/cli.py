@@ -145,8 +145,25 @@ def cmd_run(args: argparse.Namespace) -> int:
 
 
 def cmd_grade(args: argparse.Namespace) -> int:
-    gold_path = args.gold or Path(args.instance_dir or args.run_dir) / "gold.json"
-    rewards = grade_run(args.run_dir, gold_path)
+    from .harbor.reward import task_budget
+
+    budget, reserve = args.budget, args.reserve
+    gold_path = args.gold
+    if args.task_dir is not None:
+        tb, tr = task_budget(args.task_dir)
+        budget = budget if budget is not None else tb
+        reserve = reserve if reserve is not None else tr
+        gold_path = gold_path or args.task_dir / "tests" / "gold.json"
+    if args.instance_dir is not None:
+        receipt = args.instance_dir / "feasibility_receipt.json"
+        if budget is None and receipt.is_file():
+            obj = json.loads(receipt.read_text(encoding="utf-8"))
+            budget = obj.get("budget")
+            reserve = reserve if reserve is not None else obj.get("reserve")
+        gold_path = gold_path or args.instance_dir / "gold.json"
+    gold_path = gold_path or Path(args.run_dir) / "gold.json"
+    rewards = grade_run(args.run_dir, gold_path, mode=args.mode, budget=budget,
+                        reserve=reserve)
     print(json.dumps(rewards, indent=2, default=str))
     return 0 if rewards.get("grader_valid") else 2
 
@@ -256,10 +273,24 @@ def build_parser() -> argparse.ArgumentParser:
     rn.set_defaults(func=cmd_run)
 
     gr = sub.add_parser("grade", help="score a finished run directory")
-    gr.add_argument("--run-dir", type=Path, required=True)
+    gr.add_argument("--run-dir", type=Path, required=True,
+                    help="harness mode: the snapshot root (a Python-runner out dir, or "
+                         "a Harbor trial's contextbench_harness/ or the trial dir); "
+                         "legacy/oracle: the agent logs dir")
+    gr.add_argument("--mode", choices=["harness", "legacy", "oracle"],
+                    default="harness",
+                    help="harness (default): snapshots + manifest written by the "
+                         "harness; legacy: re-grade a trial recorded before the "
+                         "snapshot root existed; oracle: the oracle's final_report.txt")
     gr.add_argument("--instance-dir", type=Path, default=None,
-                    help="where gold.json lives, if not in the run directory")
+                    help="where gold.json (and feasibility_receipt.json) live")
+    gr.add_argument("--task-dir", type=Path, default=None,
+                    help="a Harbor task dir: gold and budget from tests/ and task.toml")
     gr.add_argument("--gold", type=Path, default=None)
+    gr.add_argument("--budget", type=int, default=None,
+                    help="the task budget the run is checked against (default: from "
+                         "--task-dir or the instance's feasibility receipt)")
+    gr.add_argument("--reserve", type=int, default=None)
     gr.set_defaults(func=cmd_grade)
 
     pk = sub.add_parser("package", help="build Harbor task directories")

@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from conftest import TEST_BUDGET, TEST_RESERVE, make_instance
+from conftest import TEST_BUDGET, TEST_RESERVE, make_instance, write_harness_run
 from contextbench import load_instance
 from contextbench.cli import main as cli_main
 from contextbench.graders import grade_run
@@ -98,7 +98,7 @@ def test_oracle_solution_scores_one(tmp_path: Path, instance: Path, family: str)
     agent_dir = tmp_path / "trial" / "agent"
     agent_dir.mkdir(parents=True)
     (agent_dir / "final_report.txt").write_text(m.group(2) + "\n")
-    rewards = grade_run(tmp_path / "trial", task / "tests" / "gold.json")
+    rewards = grade_run(agent_dir, task / "tests" / "gold.json", mode="oracle")
     assert rewards["graded_from"] == "final_report"
     assert rewards["reward"] == pytest.approx(1.0)
 
@@ -155,10 +155,7 @@ def test_json_tool_output_is_decoded_for_grading(tmp_path: Path) -> None:
             "queries": [{"key": "K1", "value": "alpha beta #1"}]}
     obs = json.dumps({"returncode": 0,
                       "output": "<<<ANSWER key=K1>>>\nalpha beta #1\n<<<ANSWER END>>>\n"})
-    snap = tmp_path / "agent" / "context_snapshots"
-    snap.mkdir(parents=True)
-    (snap / "turn-0000.json").write_text(json.dumps(
-        {"step": 0, "tokens": 10, "messages": [
-            {"role": "tool", "content": obs.replace("<", "\\u003c").replace(">", "\\u003e")}]}))
-    rewards = grade_run(tmp_path, gold)
+    write_harness_run(tmp_path / "contextbench_harness", [[
+        {"role": "tool", "content": obs.replace("<", "\\u003c").replace(">", "\\u003e")}]])
+    rewards = grade_run(tmp_path, gold, budget=TEST_BUDGET)
     assert rewards["reward"] == 1.0

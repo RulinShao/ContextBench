@@ -106,3 +106,17 @@ def pytest_collection_modifyitems(config, items) -> None:
     for item in items:
         if "needs_o200k" in item.keywords:
             item.add_marker(skip)
+
+
+def write_harness_run(root: Path, frames: list[list[dict]], *, budget: int = TEST_BUDGET,
+                      reserve: int = TEST_RESERVE, terminated_by: str = "stream_exhausted",
+                      extra: dict | None = None) -> Path:
+    """A snapshot root as a harness writes it: one snapshot per frame, closed."""
+    from contextbench.tokens import SnapshotLog
+
+    log = SnapshotLog(root)
+    for step, frame in enumerate(frames):
+        log.record(step, frame, {"kind": "sent", "budget": budget, "reserve": reserve,
+                                 **(extra or {})})
+    log.close(terminated_by=terminated_by)
+    return root

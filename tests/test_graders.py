@@ -18,6 +18,7 @@ from conftest import (
     make_instance,
     read_gold,
     requires_reference_tree,
+    write_harness_run,
 )
 from contextbench import grade_run, load_instance, run
 from contextbench.oracle import OracleAgent
@@ -44,6 +45,10 @@ class HalfOracle(OracleAgent):
         return super()._handle(text, last=last)
 
 
+def _grade(run_dir: Path, gold: dict, **kwargs) -> dict:
+    return grade_run(run_dir, gold, budget=TEST_BUDGET, reserve=TEST_RESERVE, **kwargs)
+
+
 def _run(instance: Path, out_dir: Path, agent) -> dict:
     return run(
         agent,
@@ -58,7 +63,7 @@ def _run(instance: Path, out_dir: Path, agent) -> dict:
 def test_every_result_records_its_source(tmp_path: Path, instance: Path) -> None:
     out = tmp_path / "run"
     _run(instance, out, OracleAgent(instance))
-    rewards = grade_run(out, read_gold(instance))
+    rewards = _grade(out, read_gold(instance))
     assert rewards["graded_from"] == "snapshots"
     assert rewards["grader_valid"] == 1.0
     assert 0.0 <= rewards["reward"] <= 1.0
@@ -68,16 +73,16 @@ def test_a_run_with_nothing_to_grade_is_invalid_not_zero(
     tmp_path: Path, instance: Path
 ) -> None:
     """No terminal state and no context is not the same as a score of zero."""
-    rewards = grade_run(tmp_path / "empty", read_gold(instance))
+    rewards = _grade(tmp_path / "empty", read_gold(instance))
     assert rewards["grader_valid"] == 0.0
-    assert rewards["graded_from"] == "none"
+    assert rewards["reward"] is None
     assert "grader_note" in rewards
 
 
 def test_partial_credit_is_partial(tmp_path: Path, instance: Path) -> None:
     out = tmp_path / "run"
     _run(instance, out, HalfOracle(instance))
-    rewards = grade_run(out, read_gold(instance))
+    rewards = _grade(out, read_gold(instance))
     assert 0.0 < rewards["reward"] < 1.0
 
 
@@ -85,7 +90,7 @@ def test_kv_extra_fields(tmp_path: Path) -> None:
     instance = make_instance(tmp_path / "instance", "kv_store")
     out = tmp_path / "run"
     _run(instance, out, HalfOracle(instance))
-    r = grade_run(out, read_gold(instance))
+    r = _grade(out, read_gold(instance))
     assert r["n_answered"] < r["total"]
     # Of the GETs it answered at all, the oracle was always right.
     assert r["reward_attempted"] == pytest.approx(1.0)
@@ -97,7 +102,7 @@ def test_log_per_type_rewards(tmp_path: Path) -> None:
     instance = make_instance(tmp_path / "instance", "log_triage")
     out = tmp_path / "run"
     _run(instance, out, OracleAgent(instance))
-    r = grade_run(out, read_gold(instance))
+    r = _grade(out, read_gold(instance))
     assert r["reward_lookup"] == pytest.approx(1.0)
     assert r["reward_count"] == pytest.approx(1.0)
 
@@ -110,22 +115,12 @@ def test_log_lookup_ignores_the_uniqueness_tag(tmp_path: Path) -> None:
     stripped = re.sub(r"\s*#[0-9a-f]+\s*$", "", lookup["answer"])
     assert stripped != lookup["answer"]
 
-    out = tmp_path / "run"
-    out.mkdir()
-    (out / "trajectory.json").write_text(
-        json.dumps(
-            [
-                {
-                    "role": "assistant",
-                    "content": f"<<<ANSWER qid={lookup['qid']}>>>\n{stripped}\n"
-                    f"<<<ANSWER END>>>",
-                }
-            ]
-        ),
-        encoding="utf-8",
-    )
-    r = grade_run(out, gold)
-    assert r["graded_from"] == "trajectory"
+    out = write_harness_run(tmp_path / "run", [[{
+        "role": "assistant",
+        "content": f"<<<ANSWER qid={lookup['qid']}>>>\n{stripped}\n<<<ANSWER END>>>",
+    }]])
+    r = _grade(out, gold)
+    assert r["graded_from"] == "snapshots"
     assert r["matched"] == 1.0
 
 
@@ -133,7 +128,7 @@ def test_sudoku_versioned_and_content_rewards(tmp_path: Path) -> None:
     instance = make_instance(tmp_path / "instance", "sudoku_sketchpad")
     out = tmp_path / "run"
     _run(instance, out, OracleAgent(instance))
-    r = grade_run(out, read_gold(instance))
+    r = _grade(out, read_gold(instance))
     for key in (
         "reward_versioned",
         "reward_content",
@@ -161,13 +156,13 @@ def test_needle_prefers_the_final_context(tmp_path: Path) -> None:
     instance = make_instance(tmp_path / "instance", "needle_retention")
     out = tmp_path / "run"
     _run(instance, out, OracleAgent(instance))
-    r = grade_run(out, read_gold(instance))
+    r = _grade(out, read_gold(instance))
     assert r["mode"] == "final_context"
     assert r["graded_from"] == "snapshots"
     assert r["reward"] == pytest.approx(1.0)
 
 
-def test_needle_falls_back_to_the_final_report(tmp_path: Path) -> None:
+def test_needle_oracle_mode_reads_the_final_report(tmp_path: Path) -> None:
     instance = make_instance(tmp_path / "instance", "needle_retention")
     gold = read_gold(instance)
     kept = gold["answer_lines"][: len(gold["answer_lines"]) // 2]
@@ -178,7 +173,7 @@ def test_needle_falls_back_to_the_final_report(tmp_path: Path) -> None:
         "<<<NEEDLES BEGIN>>>\n" + "\n".join(kept) + "\n<<<NEEDLES END>>>\n",
         encoding="utf-8",
     )
-    r = grade_run(out, gold)
+    r = grade_run(out, gold, mode="oracle")
     assert r["mode"] == "final_report"
     assert r["graded_from"] == "final_report"
     assert r["matched"] == float(len(kept))
@@ -196,11 +191,11 @@ def test_needle_report_ignores_lines_outside_the_block(tmp_path: Path) -> None:
         f"{outside}\n<<<NEEDLES BEGIN>>>\n{inside}\n<<<NEEDLES END>>>\n",
         encoding="utf-8",
     )
-    r = grade_run(out, gold)
+    r = grade_run(out, gold, mode="oracle")
     assert r["matched"] == 1.0
 
 
-def test_needle_reads_a_trajectory_as_the_final_context(tmp_path: Path) -> None:
+def test_needle_never_falls_back_to_a_trajectory(tmp_path: Path) -> None:
     instance = make_instance(tmp_path / "instance", "needle_retention")
     gold = read_gold(instance)
     out = tmp_path / "traj-run"
@@ -211,10 +206,9 @@ def test_needle_reads_a_trajectory_as_the_final_context(tmp_path: Path) -> None:
         ),
         encoding="utf-8",
     )
-    r = NeedleRetentionGrader().grade(out, gold)
-    assert r["graded_from"] == "trajectory"
-    assert r["mode"] == "final_context"
-    assert r["reward"] == pytest.approx(1.0)
+    r = NeedleRetentionGrader().grade(out, gold, budget=TEST_BUDGET)
+    assert r["grader_valid"] == 0.0 and r["reward"] is None
+    assert r["graded_from"] == "snapshots"
 
 
 # --------------------------------------------------------------------- source readers
@@ -310,10 +304,10 @@ def test_matches_the_reference_grader(
         (traj_dir / "trajectory.json").write_text(
             json.dumps(final), encoding="utf-8"
         )
-        ours = NeedleRetentionGrader().grade(traj_dir, gold)
+        ours = _grade(out, gold)  # ours reads the same final snapshot
         theirs = _reference_rewards(root, family, instance, traj_dir)
     else:
-        ours = grade_run(out, gold)
+        ours = _grade(out, gold)
         theirs = _reference_rewards(root, family, instance, out)
 
     shared = sorted(set(ours) & set(theirs))
@@ -327,7 +321,7 @@ def test_reference_grader_agrees_on_a_partial_run(tmp_path: Path) -> None:
     instance = make_instance(tmp_path / "instance", "kv_store")
     out = tmp_path / "run"
     _run(instance, out, HalfOracle(instance))
-    rewards = grade_run(out, read_gold(instance))
+    rewards = _grade(out, read_gold(instance))
     assert 0.0 < rewards["reward"] < 1.0
 
 
@@ -340,4 +334,4 @@ def test_log_count_needs_exactly_the_gold_number(tmp_path: Path, stated: str,
     """A count answer must state one complete number equal to the gold."""
     from contextbench.graders.log import _count_correct
 
-    assert _count_correct("5", {stated}) is ok
+    assert _count_correct("5", stated) is ok

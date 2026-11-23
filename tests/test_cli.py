@@ -70,7 +70,8 @@ def test_run_then_grade(tmp_path: Path, capsys) -> None:
     assert result["terminated_by"] == "submit"
 
     assert main(["grade", "--run-dir", str(run_dir),
-                 "--instance-dir", str(instance)]) == 0
+                 "--instance-dir", str(instance), "--budget", "8192",
+                 "--reserve", "1024"]) == 0
     rewards = json.loads(capsys.readouterr().out)
     assert rewards["reward"] == 1.0
     assert rewards["graded_from"] == "snapshots"

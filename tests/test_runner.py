@@ -187,7 +187,8 @@ def test_grading_uses_the_family_from_gold(tmp_path: Path, instance: Path) -> No
 
     out = tmp_path / "run"
     _run(instance, out)
-    rewards = grade_run(out, read_gold(instance))
+    rewards = grade_run(out, read_gold(instance), budget=TEST_BUDGET,
+                        reserve=TEST_RESERVE)
     assert rewards["reward"] == pytest.approx(1.0)
 
 

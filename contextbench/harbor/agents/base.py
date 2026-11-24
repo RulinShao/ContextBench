@@ -36,6 +36,7 @@ from harbor.models.agent.context import AgentContext
 
 from ... import stream as proto
 from ..mixin import CBStreamMixin
+from ..turn_source import write_text_nofollow
 
 __all__ = ["BASH_TOOL", "ContextBenchAgent", "DEFAULT_SYSTEM_PROMPT"]
 
@@ -301,8 +302,8 @@ class ContextBenchAgent(CBStreamMixin, BaseAgent):
             # An exception other than cancellation leaves terminated_by unset: a
             # crashed run has no terminal reason and must not look like one.
             self.cb_finish(None, self.messages)
-            (self.logs_dir / "usage.json").write_text(
-                json.dumps(
+            try:
+                write_text_nofollow(self.logs_dir / "usage.json", json.dumps(
                     {**self._usage, "n_llm_calls": self._n_llm_calls,
                      "n_commands": self._n_commands, "n_turns": step,
                      "peak_context_tokens": self.cb_peak_tokens,
@@ -310,9 +311,9 @@ class ContextBenchAgent(CBStreamMixin, BaseAgent):
                      "terminated_by": src.terminated_by,
                      "budget": self.budget, "reserve": self.reserve},
                     indent=2,
-                ) + "\n",
-                encoding="utf-8",
-            )
+                ) + "\n", root=self.logs_dir)
+            except OSError:
+                pass  # informational only; never through a link the agent planted
             context.n_input_tokens = self._usage["prompt_tokens"]
             context.n_output_tokens = self._usage["completion_tokens"]
             context.metadata = {

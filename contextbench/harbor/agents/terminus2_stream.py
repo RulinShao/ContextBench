@@ -46,7 +46,7 @@ from harbor.models.trajectories import Step
 
 from ... import stream as proto
 from ...tokens import SnapshotLog, count_tokens, harness_dir_for
-from ..turn_source import TurnSource
+from ..turn_source import TurnSource, write_text_nofollow
 
 __all__ = ["Terminus2Stream"]
 
@@ -168,9 +168,13 @@ class Terminus2Stream(Terminus2):
                                    n_ops_delivered=ts.n_delivered,
                                    n_ops_total=ts.n_total)
             usable = self.cb_budget - self.cb_reserve
-            (Path(self.logs_dir) / "contextbench_subagent_calls.json").write_text(
-                json.dumps({"usable": usable, "calls": self._cb_subagent_calls},
-                           indent=1) + "\n", encoding="utf-8")
+            try:
+                write_text_nofollow(
+                    Path(self.logs_dir) / "contextbench_subagent_calls.json",
+                    json.dumps({"usable": usable, "calls": self._cb_subagent_calls},
+                               indent=1) + "\n", root=self.logs_dir)
+            except OSError:
+                pass  # informational only; never through a link the agent planted
             meta = dict(context.metadata or {})
             meta.update({
                 "terminated_by": ts.terminated_by,

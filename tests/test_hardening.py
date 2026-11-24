@@ -779,3 +779,68 @@ def test_harness_mode_refuses_an_agent_logs_dir(tmp_path: Path, kv: dict,
         write_rewards(target, kv, tmp_path / "v", budget=TEST_BUDGET,
                       reserve=TEST_RESERVE)
     assert not (tmp_path / "v" / "reward.json").exists()
+
+
+# ------------------------------------- host-side writes into the agent's logs dir
+def test_turn_source_record_never_follows_a_planted_symlink(tmp_path: Path) -> None:
+    from contextbench.harbor.turn_source import TurnSource
+
+    agent = tmp_path / "agent"
+    agent.mkdir()
+    victim = tmp_path / "outside_victim.txt"
+    victim.write_text("original\n")
+    os.symlink("../outside_victim.txt", agent / "interactive_stream.json")
+    ts = TurnSource(ops=[], logs_dir=agent)
+    ts.harness_dir = tmp_path / HARNESS
+    ts.write()
+    assert victim.read_text() == "original\n"
+    assert (agent / "interactive_stream.json").is_symlink()
+    assert json.loads((tmp_path / HARNESS / "interactive_stream.json").read_text())[
+        "n_ops_total"] == 0
+
+
+def test_write_text_nofollow_refuses_links(tmp_path: Path) -> None:
+    from contextbench.harbor.turn_source import write_text_nofollow
+
+    agent = tmp_path / "agent"
+    agent.mkdir()
+    victim = tmp_path / "victim"
+    victim.write_text("original")
+    os.symlink(victim, agent / "a.json")
+    with pytest.raises(OSError):
+        write_text_nofollow(agent / "a.json", "x", root=agent)
+    with pytest.raises(OSError):
+        write_text_nofollow(agent / "a.json", "x", append=True, root=agent)
+    os.link(victim, agent / "b.json")  # a hard link to a file outside
+    with pytest.raises(OSError):
+        write_text_nofollow(agent / "b.json", "x", root=agent)
+    (tmp_path / "elsewhere").mkdir()
+    os.symlink(tmp_path / "elsewhere", agent / "sub")
+    with pytest.raises(OSError):
+        write_text_nofollow(agent / "sub" / "c.json", "x", root=agent)
+    assert not (tmp_path / "elsewhere" / "c.json").exists()
+    assert victim.read_text() == "original"
+    write_text_nofollow(agent / "ok.txt", "one\n", root=agent)
+    write_text_nofollow(agent / "ok.txt", "two\n", append=True, root=agent)
+    write_text_nofollow(agent / "ok.txt", "three\n", append=True, root=agent)
+    assert (agent / "ok.txt").read_text() == "one\ntwo\nthree\n"
+    write_text_nofollow(agent / "ok.txt", "new\n", root=agent)
+    assert (agent / "ok.txt").read_text() == "new\n"
+
+
+def test_reward_files_are_not_written_through_a_planted_symlink(tmp_path: Path,
+                                                                 kv: dict) -> None:
+    from contextbench.harbor.reward import write_rewards
+
+    trial = tmp_path / "trial"
+    _harness(trial / HARNESS, [[{"role": "tool", "content": _kv_blocks(kv)}]])
+    out = trial / "verifier"
+    out.mkdir()
+    victim = tmp_path / "victim"
+    victim.write_text("original")
+    os.symlink(victim, out / "reward.json")
+    os.symlink(victim, out / "contextbench_result.json")
+    numeric = write_rewards(trial, kv, out, budget=TEST_BUDGET, reserve=TEST_RESERVE)
+    assert numeric["reward"] == 1.0 and victim.read_text() == "original"
+    assert not (out / "reward.json").is_symlink()
+    assert json.loads((out / "reward.json").read_text())["reward"] == 1.0

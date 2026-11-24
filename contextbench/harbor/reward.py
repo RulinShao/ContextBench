@@ -35,6 +35,7 @@ from typing import Any
 from ..graders import grade_run
 from ..graders.base import GRADE_MODES, InvalidRun, resolve_snapshot_root
 from ..stream import TERMINATED_BY
+from .turn_source import write_text_nofollow
 
 __all__ = ["GRADED_FROM_CODES", "GRADE_MODE_CODES", "InvalidGrade", "harbor_rewards",
            "task_budget", "write_rewards", "main"]
@@ -128,14 +129,16 @@ def write_rewards(run_dir: Path | str, gold: dict | Path | str, out_dir: Path | 
         (out / name).unlink(missing_ok=True)
     numeric, full = harbor_rewards(run_dir, gold, mode=mode, budget=budget,
                                    reserve=reserve)
-    (out / "contextbench_result.json").write_text(
-        json.dumps(full, indent=2, default=str) + "\n", encoding="utf-8")
+    # The verifier dir is mounted into the agent's container during its run: never
+    # write through a link left there.
+    write_text_nofollow(out / "contextbench_result.json",
+                        json.dumps(full, indent=2, default=str) + "\n", root=out)
     if not full["valid"]:
         note = full["rewards"].get("grader_note") or "invalid grade"
         raise InvalidGrade(f"ContextBench run is invalid, no reward written: {note}",
                            full)
-    (out / "reward.json").write_text(json.dumps(numeric, indent=2) + "\n",
-                                     encoding="utf-8")
+    write_text_nofollow(out / "reward.json", json.dumps(numeric, indent=2) + "\n",
+                        root=out)
     return numeric
 
 

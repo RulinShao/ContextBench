@@ -57,6 +57,7 @@ from harbor.models.agent.context import AgentContext
 
 from .. import stream as proto
 from .mixin import CBStreamMixin
+from .turn_source import write_text_nofollow
 
 __all__ = ["CodexStream", "MiniSweAgentStream", "cb_stream", "supported", "unwrap_shell"]
 
@@ -178,8 +179,12 @@ class _MiniSweResume(_StreamChain):
         res = await environment.exec(cmd, env=self._driver_env(),
                                      timeout_sec=self.cb_step_timeout)
         out = res.stdout or ""
-        (self.logs_dir / "mini-swe-agent.txt").open("a", encoding="utf-8").write(
-            out[-20000:] + (res.stderr or "")[-5000:] + "\n")
+        try:
+            write_text_nofollow(self.logs_dir / "mini-swe-agent.txt",
+                                out[-20000:] + (res.stderr or "")[-5000:] + "\n",
+                                append=True, root=self.logs_dir)
+        except OSError:
+            pass  # a log copy only; never through a link the agent planted
         for line in reversed(out.splitlines()):
             if line.startswith("CB_DRIVER_RESULT "):
                 return json.loads(line[len("CB_DRIVER_RESULT "):])
@@ -259,15 +264,15 @@ class _MiniSweResume(_StreamChain):
         """Keep the stream metadata; the stock converter expects its own file name."""
         state = self.logs_dir / self._STATE_NAME
         native = self.logs_dir / "mini-swe-agent.trajectory.json"
-        if state.is_file() and not native.exists():
+        if state.is_file() and not native.exists() and not native.is_symlink():
             try:
                 data = json.loads(state.read_text(encoding="utf-8"))
-                native.write_text(json.dumps({
+                write_text_nofollow(native, json.dumps({
                     "info": {"model_stats": {"instance_cost": data.get("cost", 0.0),
                                              "api_calls": data.get("n_calls", 0)}},
                     "messages": data.get("messages") or [],
                     "trajectory_format": "mini-swe-agent-1.1",
-                }), encoding="utf-8")
+                }), root=self.logs_dir)
             except Exception:
                 pass
         meta = dict(context.metadata or {})
@@ -470,9 +475,13 @@ class _CodexResume(_StreamChain):
             raise
         finally:
             self.cb_finish(None)
-            (self.logs_dir / "codex_stream.json").write_text(json.dumps(
-                {"thread_id": self.thread_id, "n_invocations": n,
-                 "peak_context_tokens": self.cb_peak_tokens}, indent=2) + "\n")
+            try:
+                write_text_nofollow(self.logs_dir / "codex_stream.json", json.dumps(
+                    {"thread_id": self.thread_id, "n_invocations": n,
+                     "peak_context_tokens": self.cb_peak_tokens}, indent=2) + "\n",
+                    root=self.logs_dir)
+            except OSError:
+                pass  # informational only; never through a link the agent planted
             context.metadata = {"terminated_by": ts.terminated_by,
                                 "n_ops_delivered": ts.n_delivered,
                                 "n_ops_total": ts.n_total, "n_invocations": n,

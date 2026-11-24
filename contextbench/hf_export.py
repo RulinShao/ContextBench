@@ -270,10 +270,9 @@ separate revision.
 **v{benchmark_version}** hardens the graders and the runner against reward hacking (see
 `docs/DESIGN.md` in [{harbor_repo}](https://github.com/{harbor_repo}/tree/{revision}),
 threat model). It differs from the original release used in the paper in how runs are
-recorded and graded (host-side verifier, new run command); task streams, gold answers
-and the scoring of honest runs are unchanged, and the scores reported in the paper are
-not affected. The original release remains available at tag `v0.0-paper` of the GitHub
-repository.
+recorded and graded (host-side verifier, new run command) and in stricter answer
+extraction; the task streams and gold answers are unchanged. The original release
+remains available at tag `v0.0-paper` of the GitHub repository.
 
 A run is scored only with `--verifier contextbench.harbor.verifiers:ContextBenchVerifier`
 and a harness that records its per-turn context through the `contextbench` snapshot

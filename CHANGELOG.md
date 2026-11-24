@@ -4,8 +4,8 @@
 
 Benchmark version `0.1` (package `0.1.0`). Hardens the graders and the runner against
 reward hacking; the threat model is in [`docs/DESIGN.md`](docs/DESIGN.md) and the README
-("What the grader assumes"). Task streams, gold answers and the scoring of honest runs
-are unchanged. The original release remains available at tag `v0.0-paper`.
+("What the grader assumes"). Task streams and gold answers are unchanged. The original
+release remains available at tag `v0.0-paper`.
 
 ### What changes for users
 

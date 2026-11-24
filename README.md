@@ -16,9 +16,9 @@ turns, so any chat agent can be evaluated, with or without tools.
 **v0.1** hardens the graders and the runner against reward hacking (see
 [`docs/DESIGN.md`](docs/DESIGN.md), threat model). It differs from the original release
 used in the paper in how runs are recorded and graded (host-side verifier, new run
-command); task streams, gold answers and the scoring of honest runs are unchanged, and
-the scores reported in the paper are not affected. The original release remains
-available at tag `v0.0-paper`.
+command) and in stricter answer extraction (see [`CHANGELOG.md`](CHANGELOG.md)); the
+task streams and gold answers are unchanged. The original release remains available at
+tag `v0.0-paper`.
 
 v0.1 lives on the `v0.1` branch of this repository and the `v0.1` revision of the
 Hugging Face dataset; the commands below pin it (`--repo RulinShao/ContextBench@v0.1`,

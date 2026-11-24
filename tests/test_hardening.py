@@ -440,9 +440,15 @@ def _task(tmp_path: Path, family: str = "kv_store") -> Path:
                       budget=TEST_BUDGET, reserve=TEST_RESERVE, require_feasible=False)
 
 
-def test_test_sh_cannot_be_shadowed_and_writes_no_reward(tmp_path: Path) -> None:
-    """[H] a `contextbench` package (and a `python3`) planted by the agent in the work
-    dir and on PATH: tests/test.sh still writes no reward and exits non-zero."""
+def test_test_sh_ignores_a_planted_python_and_writes_no_reward(tmp_path: Path) -> None:
+    """[H] a `contextbench` package planted in the work dir, a `python3` planted on
+    PATH and a reward.json left in the verifier dir: tests/test.sh runs no
+    interpreter, removes the reward file and exits non-zero.
+
+    This covers the script only. A process the agent left running, or a replaced
+    `bash`/`rm`, could still write a reward after it if the script ran in the agent's
+    container; that is why the tasks use a separate verifier environment (next test)
+    and why only runs with the host verifier are scored."""
     task = _task(tmp_path)
     box = tmp_path / "box"
     for d in ("tests", "logs/verifier", "logs/agent", "app/contextbench/harbor", "bin"):
@@ -476,13 +482,51 @@ def test_task_toml_settings_parse_under_harbor(tmp_path: Path) -> None:
 
     task = _task(tmp_path)
     raw = tomllib.loads((task / "task.toml").read_text())
-    assert raw["verifier"]["environment_mode"] == "shared"
+    assert raw["verifier"]["environment_mode"] == "separate"
     assert raw["environment"]["network_mode"] == "public"
     assert raw["metadata"]["contextbench_budget_tokens"] == TEST_BUDGET
     config = pytest.importorskip("harbor.models.task.config")
     cfg = config.TaskConfig.model_validate(raw)
-    assert cfg.verifier.environment_mode.value == "shared"
+    assert cfg.verifier.environment_mode.value == "separate"
     assert cfg.environment.network_mode.value == "public"
+
+
+def test_separate_verifier_mode_under_harbor(tmp_path: Path) -> None:
+    """Harbor resolves the tasks to a separate verifier environment (the agent's
+    container is stopped before verification, and the fresh environment is a copy of
+    the task's), and builds the host verifier the way its separate-mode path does
+    (``skip_tests_upload=True``)."""
+    import asyncio
+    import tomllib
+
+    pytest.importorskip("harbor")
+    from harbor.models.task.config import TaskConfig
+    from harbor.models.trial.config import VerifierConfig
+    from harbor.models.task.verifier_mode import (
+        VerifierEnvironmentMode, resolve_effective_verifier_env_config,
+        resolve_task_verifier_mode)
+    from harbor.verifier.factory import VerifierFactory
+    from contextbench.harbor.verifiers import ContextBenchVerifier
+
+    task = _task(tmp_path)
+    cfg = TaskConfig.model_validate(tomllib.loads((task / "task.toml").read_text()))
+    assert resolve_task_verifier_mode(cfg) == VerifierEnvironmentMode.SEPARATE
+    env_cfg = resolve_effective_verifier_env_config(cfg, None)
+    assert env_cfg.docker_image == cfg.environment.docker_image
+    assert env_cfg.network_mode == cfg.environment.network_mode
+
+    gold = json.loads((task / "tests" / "gold.json").read_text())
+    trial = tmp_path / "trial"
+    (trial / "verifier").mkdir(parents=True)
+    _harness(trial / HARNESS, [[{"role": "tool", "content": _kv_blocks(gold)}]])
+    paths = _Obj(trial_dir=trial, agent_dir=trial / "agent",
+                 verifier_dir=trial / "verifier")
+    v = VerifierFactory.create_verifier_from_config(
+        VerifierConfig(import_path="contextbench.harbor.verifiers:ContextBenchVerifier"),
+        task=_Obj(paths=_Obj(tests_dir=task / "tests"), config=cfg),
+        trial_paths=paths, environment=None, skip_tests_upload=True)
+    assert isinstance(v, ContextBenchVerifier)
+    assert asyncio.run(v.verify()).rewards["reward"] == 1.0
 
 
 # ----------------------------------------------- the host verifier and its oracle mode

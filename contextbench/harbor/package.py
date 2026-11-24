@@ -24,9 +24,13 @@ the network note in :func:`_task_toml`).
 Grading happens on the host only, with
 ``--verifier contextbench.harbor.verifiers:ContextBenchVerifier``: the harness writes
 the context snapshots to ``<trial_dir>/contextbench_harness/``, which is not mounted
-into the container. ``tests/test.sh`` -- what Harbor runs when no verifier is given
--- runs no interpreter from the container: it removes any reward file left in
-``/logs/verifier`` and exits non-zero, so such a trial has no reward at all.
+into the container. The task sets ``[verifier] environment_mode = "separate"``: Harbor
+stops the agent's container before verification and empties the verifier dir in a
+fresh one, so no process the agent left running can write a reward. ``tests/test.sh``
+-- what Harbor would run when no verifier is given -- runs no interpreter: it removes
+any reward file left in ``/logs/verifier`` and exits non-zero, so such a trial has no
+reward at all (in separate mode Harbor does not even copy it into the fresh
+container, and the trial fails for lack of a reward file).
 
 This module imports nothing from Harbor; the task is plain files.
 """
@@ -198,9 +202,10 @@ def _task_toml(
         "",
         "[verifier]",
         "# Grade on the host: --verifier contextbench.harbor.verifiers:ContextBenchVerifier",
-        "# (tests/test.sh only refuses). \"shared\": the host verifier needs no container.",
+        "# (tests/test.sh only refuses). \"separate\": Harbor stops the agent's container",
+        "# before verifying, so nothing the agent started can touch the verifier dir.",
         f"timeout_sec = {float(verifier_timeout_sec)}",
-        'environment_mode = "shared"',
+        'environment_mode = "separate"',
         "",
         "[agent]",
         f"timeout_sec = {float(agent_timeout_sec)}",

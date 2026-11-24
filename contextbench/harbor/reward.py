@@ -33,7 +33,7 @@ from pathlib import Path
 from typing import Any
 
 from ..graders import grade_run
-from ..graders.base import GRADE_MODES, resolve_snapshot_root
+from ..graders.base import GRADE_MODES, InvalidRun, resolve_snapshot_root
 from ..stream import TERMINATED_BY
 
 __all__ = ["GRADED_FROM_CODES", "GRADE_MODE_CODES", "InvalidGrade", "harbor_rewards",
@@ -59,7 +59,10 @@ class InvalidGrade(RuntimeError):
 
 def _stream_record(run_dir: Path, mode: str) -> dict[str, Any]:
     if mode == "harness":
-        path = resolve_snapshot_root(run_dir) / STREAM_RECORD_NAME
+        try:
+            path = resolve_snapshot_root(run_dir) / STREAM_RECORD_NAME
+        except InvalidRun:
+            return {}
     elif mode == "legacy":
         path = run_dir / STREAM_RECORD_NAME
     else:
@@ -169,9 +172,9 @@ def task_budget(task_dir: Path | str) -> tuple[int | None, int | None]:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--run-dir", type=Path, required=True,
-                    help="harness: the snapshot root or the trial dir holding "
-                         "contextbench_harness/; legacy: the old trial's agent/ dir; "
-                         "oracle: the oracle trial's agent/ dir")
+                    help="harness: the trial dir (or its contextbench_harness/); an "
+                         "agent logs dir is refused. legacy: the old trial's agent/ "
+                         "dir. oracle: the oracle trial's agent/ dir")
     ap.add_argument("--mode", choices=GRADE_MODES, default="harness")
     ap.add_argument("--task-dir", type=Path, default=None,
                     help="the task directory: gold and budget are read from it")

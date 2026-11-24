@@ -30,6 +30,7 @@ edited board in a rewritten message whose role is ``user``).
 from __future__ import annotations
 
 import json
+import os
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -274,15 +275,38 @@ def _recorded_tokens(value: Any) -> int:
     return value if isinstance(value, int) and not isinstance(value, bool) else 0
 
 
+#: Harbor's name for a trial's agent logs dir (mounted at ``/logs/agent``).
+AGENT_DIRNAME = "agent"
+
+#: Files and folders an agent logs dir holds and a snapshot root never does.
+AGENT_LOG_MARKERS = ("final_report.txt", "sessions", "terminus_2.pane",
+                     "mswea_state.json", "codex_stream.json", "usage.json",
+                     "mini-swe-agent.txt")
+
+
 def resolve_snapshot_root(path: Path | str) -> Path:
     """``path`` if it holds a snapshot manifest, else ``path/contextbench_harness``.
 
-    Never searches an agent's logs dir: a manifest planted there is not a root.
+    Never searches an agent's logs dir, and refuses (:class:`InvalidRun`) a root that
+    is one or lies inside one -- a directory named ``agent``, or one holding agent
+    log files (:data:`AGENT_LOG_MARKERS`) -- so a manifest the agent planted there is
+    never graded by mistake. Pass the trial dir or its ``contextbench_harness/``.
     """
     path = Path(path)
     if (path / MANIFEST_NAME).is_file() or path.name == HARNESS_DIRNAME:
-        return path
-    return path / HARNESS_DIRNAME
+        root = path
+    else:
+        root = path / HARNESS_DIRNAME
+    where = Path(os.path.normpath(os.path.abspath(root)))
+    if AGENT_DIRNAME in (where.name, where.parent.name):
+        raise InvalidRun(f"{root} is (inside) an agent logs dir, which the agent can "
+                         "write: harness mode grades the trial's host-only "
+                         f"{HARNESS_DIRNAME}/ (pass the trial dir)")
+    markers = [m for m in AGENT_LOG_MARKERS if (root / m).exists()]
+    if markers:
+        raise InvalidRun(f"{root} holds agent log files ({', '.join(markers)}): "
+                         "harness mode never grades an agent logs dir")
+    return root
 
 
 def _read_manifest(root: Path) -> list[dict[str, Any]]:

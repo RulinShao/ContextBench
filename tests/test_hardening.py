@@ -757,3 +757,25 @@ def test_malformed_recorded_numbers_are_invalid(tmp_path: Path, kv: dict, field:
         man.write_text("".join(json.dumps(x) + "\n" for x in lines))
     r = _grade(root, kv)
     assert r["grader_valid"] == 0.0 and "not an integer" in r["grader_note"]
+
+
+@pytest.mark.parametrize("where", ["agent", "agent/contextbench_harness", "marker"])
+def test_harness_mode_refuses_an_agent_logs_dir(tmp_path: Path, kv: dict,
+                                                where: str) -> None:
+    """A manifest the agent planted in its own logs dir is never graded."""
+    trial = tmp_path / "trial"
+    if where == "marker":
+        target = tmp_path / "copied_logs"
+        _harness(target, [[{"role": "tool", "content": _kv_blocks(kv)}]])
+        (target / "final_report.txt").write_text("report")
+    else:
+        target = trial / where
+        _harness(target, [[{"role": "tool", "content": _kv_blocks(kv)}]])
+    r = _grade(target, kv)
+    assert r["grader_valid"] == 0.0 and "agent" in r["grader_note"]
+    from contextbench.harbor.reward import write_rewards, InvalidGrade
+
+    with pytest.raises(InvalidGrade):
+        write_rewards(target, kv, tmp_path / "v", budget=TEST_BUDGET,
+                      reserve=TEST_RESERVE)
+    assert not (tmp_path / "v" / "reward.json").exists()

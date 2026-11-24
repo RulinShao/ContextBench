@@ -274,9 +274,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     gr = sub.add_parser("grade", help="score a finished run directory")
     gr.add_argument("--run-dir", type=Path, required=True,
-                    help="harness mode: the snapshot root (a Python-runner out dir, or "
-                         "a Harbor trial's contextbench_harness/ or the trial dir); "
-                         "legacy/oracle: the agent logs dir")
+                    help="harness mode: the snapshot root (a Python-runner out dir, "
+                         "a Harbor trial dir, or its contextbench_harness/; an agent "
+                         "logs dir is refused); legacy/oracle: the agent logs dir")
     gr.add_argument("--mode", choices=["harness", "legacy", "oracle"],
                     default="harness",
                     help="harness (default): snapshots + manifest written by the "

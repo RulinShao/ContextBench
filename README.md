@@ -9,7 +9,7 @@ turns, so any chat agent can be evaluated, with or without tools.
 - Paper: [Context Language Models](https://arxiv.org/abs/2609.37725) (arXiv:2609.37725)
 - Dataset: [context-language-model/ContextBench](https://huggingface.co/datasets/context-language-model/ContextBench) on Hugging Face
 - Context Language Models, which introduced the benchmark: [facebookresearch/context-language-models](https://github.com/facebookresearch/context-language-models)
-- Run every task with Harbor in one line: `harbor jobs start --repo RulinShao/ContextBench -d contextbench -a <agent> -m <model>`
+- Run every task with Harbor in one line: `harbor jobs start --repo RulinShao/ContextBench -d contextbench -a <agent> -m <model> --verifier contextbench.harbor.verifiers:ContextBenchVerifier`
 
 ## Install
 
@@ -96,16 +96,24 @@ A snapshot is checked against the task's budget (`contextbench_budget_tokens` in
 `kind="sent"` snapshots, or every snapshot for a harness that records no such kind) may
 hold more tokens than the budget, except the context that hit the wall at the very end
 of a `budget_wall` run.
-The grader recounts every snapshot and records the budget in `reward.json`
-(`budget_tokens`, `reserve_tokens`).
+The grader recounts every snapshot with `o200k_base` and records the budget in
+`reward.json` (`budget_tokens`, `reserve_tokens`, `tokens_verified=1`). Where it cannot
+count with `o200k_base` (no `tiktoken` or no vocabulary, as with the standard-library
+copy in `tests/_cb`), it never judges a run on its character estimate: it checks the
+token counts the harness recorded (sha256-protected by the manifest) and reports
+`tokens_verified=0` with a `token_note`.
 
 ANSWER blocks (kv store, log triage) are read only from what the agent produced:
 assistant messages and tool output, never the instruction or the ops. Each question has
 one answer, the **last** block for it (latest snapshot first, then the later message in
 that snapshot), so an agent may correct an answer and a later wrong answer replaces a
-right one. A block counts only with each marker at the start of its own line, as the
-instruction shows it; a mention of the format inside other text is not an answer. A kv value and a log lookup must equal the gold after whitespace
-normalization (a log message's trailing `#hex` tag is optional); a count must state
+right one; this holds across snapshots too, so the answer of record is the last one the
+run produced. A block counts only with each marker at the start of its own line, as the
+instruction shows it; a mention of the format inside other text, or a one-line
+`<<<ANSWER key=K>>> value <<<ANSWER END>>>`, is not an answer. A reply that is a JSON
+object (terminus-2's command format) is read decoded, from its top-level text fields.
+Keys and qids are matched exactly (`K00007` is not `k00007`). A kv value and a log lookup
+must equal the gold after whitespace normalization (a log message's trailing `#hex` tag is optional); a count must state
 exactly one number. Needle retention reads the whole final snapshot and the sudoku
 grader every message of every snapshot, as before.
 
@@ -151,7 +159,7 @@ harbor jobs start -p cb_tasks/ -a contextbench.harbor.wrap:CodexStream -m openai
 The same tasks are published as the Hugging Face dataset
 [context-language-model/ContextBench](https://huggingface.co/datasets/context-language-model/ContextBench),
 readable with `datasets.load_dataset` (one config per family plus `all`) and, once
-downloaded, runnable with `harbor jobs start --registry-path registry.json -d contextbench`.
+downloaded, runnable with `harbor jobs start --registry-path registry.json -d contextbench -a <agent> -m <model> --verifier contextbench.harbor.verifiers:ContextBenchVerifier`.
 `contextbench export-hf` writes that layout (`data/*.parquet`, `harbor/`, `registry.json`, `README.md`) for any
 levels file (`pip install -e '.[hf]'`):
 
@@ -160,12 +168,15 @@ contextbench export-hf --config clm_exp/configs/paper.yaml --repo-id context-lan
 ```
 
 **Grading is host-side only.** Every run needs
-`--verifier contextbench.harbor.verifiers:ContextBenchVerifier`. The harness writes the
+`--verifier contextbench.harbor.verifiers:ContextBenchVerifier`; a run without it is not
+a valid scored run, whatever reward file it may show. The harness writes the
 context snapshots to `<trial_dir>/contextbench_harness/`, a sibling of the `agent/`
 directory that Harbor does not mount into the container, and the verifier grades them on
-the host. Without the flag Harbor runs the task's `tests/test.sh`, which grades nothing:
-it deletes any reward file found in `/logs/verifier` and exits non-zero, so the trial has
-no reward. A run that cannot be graded (no snapshots, a snapshot file the harness did not
+the host. The tasks set `[verifier] environment_mode = "separate"`, so Harbor stops the
+agent's container before verification and empties the verifier directory in a fresh
+container. Without the flag Harbor's default verifier finds no `tests/test.sh` in that
+fresh container and the trial ends with no reward (the script itself only deletes reward
+files and exits non-zero). A run that cannot be graded (no snapshots, a snapshot file the harness did not
 write, a changed or unreadable one, a manifest that was never closed, a budget mismatch)
 is **invalid**: the verifier writes `contextbench_result.json` with the reason, no
 `reward.json`, and fails, instead of reporting a zero.
@@ -180,19 +191,36 @@ harbor trials start -p cb_tasks/kv-store-R1000-seed42 -a oracle \
 ```
 
 `contextbench grade --task-dir <task> --run-dir <trial_dir>` grades a finished trial
-offline (`--mode legacy --run-dir <trial_dir>/agent` re-grades a trial recorded before
-the snapshot root existed, with the same checks minus the manifest), and so does the
+offline (pass the trial dir; an agent logs dir is refused), and so does the
 copy of the graders in each task's `tests/_cb/`, standard library only:
 `python3 -I -c 'import sys; sys.path.insert(0, sys.argv.pop(1)); from contextbench.harbor.reward import main; sys.exit(main())' <task>/tests/_cb --run-dir <trial_dir> --task-dir <task> --out-dir <dir>`.
+
+`--mode legacy --run-dir <trial_dir>/agent` re-grades a trial recorded before the
+snapshot root existed. It is weaker than a scored grade and meant only for trials whose
+provenance was checked by other means (`tools/audit_trial.py`): it reads snapshots from
+the agent-writable logs dir with no manifest, does not require each snapshot to record
+the budget, does not require a recorded token count to equal the recount (it keeps the
+larger), and takes `terminated_by` from the agent-writable `interactive_stream.json`.
 
 **What the grader assumes.** The agent controls its container, including `/logs/agent`
 and `/logs/verifier`; it does not control the host. The snapshots are written by the
 harness process on the host, outside the container, and the grader accepts only files
-listed with their sha256 in the harness's closed `snapshot_manifest.jsonl`. For the agents
-that run inside the container (`CodexStream`, `MiniSweAgentStream`) the snapshots are
-built from the session state the CLI keeps in `/logs/agent`; that state is the context the
-CLI resumes from, and a model that rewrites it changes its own context, which the
-snapshots then record. Budget, reserve and gold come from the task directory on the host.
+listed with their sha256 in the harness's closed `snapshot_manifest.jsonl`. Host-side
+writes into the directories the container can reach never follow a symlink. Budget,
+reserve and gold come from the task directory on the host. A scored run is one graded by
+`--verifier contextbench.harbor.verifiers:ContextBenchVerifier`; a run without that flag
+is not a valid scored run.
+
+`CodexStream` and `MiniSweAgentStream` are not tamper-proof against an adversarial
+agent. Their CLI runs inside the container and keeps its session in `/logs/agent`, and
+the harness builds the snapshots from those session files. The files are the context the
+CLI resumes from, but a process in the container can rewrite them between turns, so what
+the snapshots record is only as trustworthy as the agent. The harnesses that run on the
+host (`ContextBenchAgent`, `Terminus2Stream`, and any harness built on `CBStreamMixin`)
+snapshot the messages they send themselves.
+
+Only single-step Harbor tasks are supported: the tasks have no `[[steps]]`, and the
+verifier is not designed for multi-step trials.
 The tasks set `network_mode = "public"` (Harbor's default) explicitly: agents that run in
 the container reach their model endpoint from it, and Singularity/Apptainer cannot
 enforce anything stricter. The gold and the oracle solution are public in this
@@ -207,7 +235,8 @@ looks up for `python:3.12-slim`, and point Harbor at that directory:
 ```bash
 apptainer build sif_cache/python_3.12-slim.sif environment/contextbench.def
 harbor jobs start --repo RulinShao/ContextBench -d contextbench -e singularity \
-    --ek singularity_image_cache_dir=$PWD/sif_cache -a <agent> -m <model>
+    --ek singularity_image_cache_dir=$PWD/sif_cache -a <agent> -m <model> \
+    --verifier contextbench.harbor.verifiers:ContextBenchVerifier
 ```
 
 `environment/contextbench-cli-agents.def` adds codex and mini-swe-agent. `contextbench

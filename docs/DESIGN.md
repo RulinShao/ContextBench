@@ -32,10 +32,21 @@ Paper levels and seeds live in `clm_exp/configs/paper.yaml` (budget 32768, reser
    (`stream_exhausted`). Other terminations: `budget_wall`, `timeout`, `max_steps`.
 
 Answer contracts (graded out of the agent's messages, never from disk):
-- kv: `<<<ANSWER key=K>>> value <<<ANSWER END>>>`
-- log: `<<<ANSWER qid=N>>> answer <<<ANSWER END>>>`
-- needle: keep `[n…#…]` lines verbatim; agents that cannot expose their context print the kept
-  lines between `<<<NEEDLES BEGIN>>>` / `<<<NEEDLES END>>>` at the end (graded as `final_report`).
+- kv: an ANSWER block, each marker on its own line:
+  ```
+  <<<ANSWER key=K>>>
+  value
+  <<<ANSWER END>>>
+  ```
+  The one-line form `<<<ANSWER key=K>>> value <<<ANSWER END>>>` is not an answer (scores 0).
+- log: the same block with `qid=N` and the answer between the two marker lines.
+- For both: only assistant messages and tool output count (terminus-2's terminal turns are
+  tool output; a JSON reply is read decoded). One answer per key or qid: the last block, in
+  snapshot order and then message order, so a later answer replaces an earlier one, across
+  snapshots too. Keys and qids are matched exactly (case-sensitive).
+- needle: keep `[n…#…]` lines verbatim; they are graded in the final context snapshot. The
+  `<<<NEEDLES BEGIN>>>` / `<<<NEEDLES END>>>` report is read only for the oracle solution
+  (`mode=oracle`, graded as `final_report`), never for an agent.
 - sudoku: reprint the panel between `<<<SKETCHPAD BEGIN>>>` / `<<<SKETCHPAD END>>>` with the
   `VERSION: n` line bumped after each move.
 
@@ -106,15 +117,23 @@ observation) breaks this, because observations pass through the harness's trunca
 paths before they reach the context; it is not offered.
 
 Grading is host-side only: every run passes
-`--verifier contextbench.harbor.verifiers:ContextBenchVerifier`. The harness writes the
+`--verifier contextbench.harbor.verifiers:ContextBenchVerifier`, and a run without it is not a
+valid scored run. The tasks set `[verifier] environment_mode = "separate"`: Harbor stops the
+agent's container before verification and empties the verifier directory in a fresh container
+(where the host verifier needs nothing), so no process the agent left behind can write a
+reward. Only single-step tasks are supported. The harness writes the
 per-turn snapshots through `contextbench.tokens.SnapshotLog` into
 `<trial_dir>/contextbench_harness/`, a sibling of `agent/` that Harbor does not mount into
 the container, together with `snapshot_manifest.jsonl` (each file's sha256, then a closing
 line with the terminal reason) and a copy of `interactive_stream.json`. The verifier reads
 the gold from the task's `tests/` and the budget from its `task.toml` metadata on the host,
 and grades only manifest-listed, unmodified snapshots (see `contextbench/graders/base.py`
-for the checks). Without the flag Harbor runs `tests/test.sh`, which grades nothing: it
-removes reward files from `/logs/verifier` and exits non-zero. An invalid run gets
+for the checks). Without the flag Harbor's default verifier finds no `tests/test.sh` in the
+fresh container and the trial has no reward; the script itself grades nothing either (it
+removes reward files from `/logs/verifier` and exits non-zero). The snapshot root passed to
+an offline grade must not be an agent logs dir (a directory named `agent`, or one holding
+agent log files): harness mode refuses it. Host-side writes into the directories the
+container can reach never follow a symlink. An invalid run gets
 `contextbench_result.json` with the reason and no `reward.json`, and the verifier raises.
 `--verifier-kwarg mode=oracle` grades the oracle solution's `final_report.txt`, only in a
 trial whose `config.json` names Harbor's `oracle` agent. Harbor's reward dict must be

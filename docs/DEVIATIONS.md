@@ -4,12 +4,15 @@ ContextBench is a port. This file lists every place the released package differs
 from the internal benchmark it was ported from, and the questions the source left
 open. Anything not listed here was ported as is.
 
-Parity is machine-checked where it can be. With the reference tree available,
-`pytest` compares the ported generators (byte-identical instance files), the
-feasibility gate (every measured number and every check detail string), and the four
-graders (every shared reward key, on a full run and on a half-correct run). Those
-tests skip when the reference tree is absent, so the public repository carries no
-path to it.
+Parity is machine-checked where it can be. With the reference tree available
+(`CONTEXTBENCH_REFERENCE_TREE`), `pytest` compares the ported generators
+(byte-identical instance files), the feasibility gate (every measured number and every
+check detail string), and the four graders (every shared reward key, on a full run and
+on a half-correct run). Without it these 44 parity tests are skipped, so the public
+repository carries no path to it. Since the answer rules of kv store and log triage
+changed (see "Grading sources and checks"), their grader parity tests are expected to
+differ wherever the two rule sets disagree on a run (for example a one-line block, an
+answer in a user message, or a later different answer to the same question).
 
 ## Token counting
 
@@ -139,8 +142,14 @@ and reward definitions of needle retention and sudoku are unchanged.
   number. Before, any block in any message of any snapshot could match, a kv value or
   lookup could be a substring of the answer, and a query was right when any of its
   answers was.
-- **`tests/test.sh` does not grade.** Tasks are graded by the host verifier only; the
-  script removes reward files from `/logs/verifier` and exits non-zero.
+- **Token counts.** With `o200k_base` available the grader checks its own recount. Without
+  it (no `tiktoken` or no vocabulary) it never judges a run on its `len // 3` estimate: it
+  checks the counts the harness recorded and reports `tokens_verified=0` and a
+  `token_note`.
+- **`tests/test.sh` does not grade.** Tasks are graded by the host verifier only, in a
+  separate verifier environment (`environment_mode = "separate"`: the agent's container
+  is stopped first); the script removes reward files from `/logs/verifier` and exits
+  non-zero.
 
 ## The feasibility gate
 
@@ -284,8 +293,9 @@ told apart.
 **Graders decode JSON tool results.** mini-swe-agent renders every command's output as a JSON
 object whose `<` and `>` are escaped (`\u003c`), so an ANSWER block the model printed is not
 literally present in the tool message, although the model reads it decoded. The graders now read
-the string fields of a tool message that is a single JSON object. Nothing else changes: the
-parity tests against the source graders still pass.
+the string fields of a tool message that is a single JSON object. The same applies to an
+assistant reply that ends in a JSON object (terminus-2's command format), read as the text
+before it plus the object's top-level string fields.
 
 **A failed readiness command is explained as non-standalone.** As in the source, a readiness
 command with a non-zero exit (for example `python3 - <<'PY' && echo READY_FOR_NEXT_OP` whose

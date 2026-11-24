@@ -123,7 +123,7 @@ and reward definitions of needle retention and sudoku are unchanged.
   that fails raises instead of being skipped.
 - **One source per mode, no fallback.** `harness` (scored runs) reads only that root;
   `legacy` re-grades trials recorded before it existed, from `agent/context_snapshots`,
-  and is meant for offline use; `oracle` reads the oracle's `final_report.txt` and, in
+  and is meant for offline use (its budget check is advisory: reported, not enforced); `oracle` reads the oracle's `final_report.txt` and, in
   the Harbor verifier, only for trials of Harbor's `oracle` agent. The trajectory and
   report fallbacks are gone.
 - **Checks before scoring.** Unlisted, missing, modified or unreadable snapshot files,

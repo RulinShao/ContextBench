@@ -138,6 +138,9 @@ an offline grade must not be an agent logs dir (a directory named `agent`, or on
 agent log files): harness mode refuses it. Host-side writes into the directories the
 container can reach never follow a symlink. An invalid run gets
 `contextbench_result.json` with the reason and no `reward.json`, and the verifier raises.
+Offline, `--mode legacy` re-grades run folders written before v0.1 (snapshots in the agent
+dir, no manifest); its budget check is advisory (`budget_checked="advisory"`, `budget_ok`),
+because those folders do not record which context was sent to the model.
 `--verifier-kwarg mode=oracle` grades the oracle solution's `final_report.txt`, only in a
 trial whose `config.json` names Harbor's `oracle` agent. Harbor's reward dict must be
 numeric, so the source is recorded as `graded_from_code` (3 snapshots, 4 legacy snapshots,

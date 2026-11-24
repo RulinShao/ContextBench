@@ -221,12 +221,17 @@ offline (pass the trial dir; an agent logs dir is refused), and so does the
 copy of the graders in each task's `tests/_cb/`, standard library only:
 `python3 -I -c 'import sys; sys.path.insert(0, sys.argv.pop(1)); from contextbench.harbor.reward import main; sys.exit(main())' <task>/tests/_cb --run-dir <trial_dir> --task-dir <task> --out-dir <dir>`.
 
-`--mode legacy --run-dir <trial_dir>/agent` re-grades a trial recorded before the
-snapshot root existed. It is weaker than a scored grade and meant only for trials whose
-provenance was checked by other means (`tools/audit_trial.py`): it reads snapshots from
-the agent-writable logs dir with no manifest, does not require each snapshot to record
-the budget, does not require a recorded token count to equal the recount (it keeps the
-larger), and takes `terminated_by` from the agent-writable `interactive_stream.json`.
+`--mode legacy --run-dir <trial_dir>/agent` re-grades a run folder written before
+v0.1, offline. Such folders cannot meet v0.1's recording rules, so the grade is weaker
+than a scored one and meant only for runs whose provenance was checked by other means
+(`tools/audit_trial.py`): it reads snapshots from the agent-writable logs dir with no
+manifest, and takes `terminated_by` from the agent-writable `interactive_stream.json`
+(or `usage.json` when that file does not record it; `terminated_by_from` says which).
+Its budget check is **advisory**: old snapshots do not say which context was sent to the
+model, so the run is scored and the outcome is reported (`budget_checked="advisory"`,
+`budget_ok`, `budget_note`, `budget_max_tokens`, `n_snapshots_over_budget`) instead of
+making it invalid. Scored runs (harness mode) enforce the budget
+(`budget_checked="enforced"`).
 
 **What the grader assumes.** The agent controls its container, including `/logs/agent`
 and `/logs/verifier`; it does not control the host. The snapshots are written by the

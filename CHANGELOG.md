@@ -36,9 +36,10 @@ are unchanged. The original release remains available at tag `v0.0-paper`.
   the last one in the run; kv values and log lookups must equal the gold after
   whitespace normalization; a count must state exactly one number; keys are
   case-sensitive.
-- **Budget checked by the grader.** Every snapshot must record the task's budget, and
-  the grader recounts each with `o200k_base`. Without `tiktoken` it checks the
-  harness's recorded counts instead and reports `tokens_verified=0`.
+- **Budget checked by the grader** (scored runs; advisory for `--mode legacy`). Every
+  snapshot must record the task's budget, and the grader recounts each with
+  `o200k_base`. Without `tiktoken` it checks the harness's recorded counts instead and
+  reports `tokens_verified=0`.
 - **Host-side writes** into the directories the container can reach never follow a
   symlink.
 - **`CodexStream`** ends a run as `budget_wall` whenever the context after a turn is over
@@ -66,10 +67,12 @@ python3 -I -c 'import sys; sys.path.insert(0, sys.argv.pop(1)); from contextbenc
     <task>/tests/_cb --mode legacy --run-dir <trial_dir>/agent --task-dir <task> --out-dir <dir>
 ```
 
-Legacy mode applies the v0.1 answer rules and budget checks but reads files the agent
-could write: there is no manifest, a snapshot need not record the budget, a recorded
-token count need not equal the recount (the larger is kept), and `terminated_by` comes
-from `interactive_stream.json` in the agent dir. Use it only for runs whose provenance
+Legacy mode applies the v0.1 answer rules but reads files the agent could write: there
+is no manifest, and `terminated_by` comes from `interactive_stream.json` in the agent dir
+(or `usage.json` when that file does not record it). Its budget check is advisory: such
+folders do not record which context was sent to the model, so the run is scored and the
+result reports `budget_checked="advisory"`, `budget_ok`, `budget_note`,
+`budget_max_tokens` and `n_snapshots_over_budget`. Use it only for runs whose provenance
 was checked by other means (`tools/audit_trial.py`), never as a scored grade.
 
 ### Known limitations

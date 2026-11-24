@@ -118,10 +118,13 @@ paths before they reach the context; it is not offered.
 
 Grading is host-side only: every run passes
 `--verifier contextbench.harbor.verifiers:ContextBenchVerifier`, and a run without it is not a
-valid scored run. The tasks set `[verifier] environment_mode = "separate"`: Harbor stops the
-agent's container before verification and empties the verifier directory in a fresh container
-(where the host verifier needs nothing), so no process the agent left behind can write a
-reward. Only single-step tasks are supported. The harness writes the
+valid scored run. Harbor records the host verifier's return value as the reward (the score of
+record is the trial's `result.json`), never a file the agent could write. The tasks set
+`[verifier] environment_mode = "separate"`: Harbor stops the agent's container before
+verification and empties the verifier directory in a fresh container (where the host verifier
+needs nothing). On Singularity a process the agent detached with `setsid` survives that stop
+(Harbor 0.16.1) and can still write into `verifier/`, which is why a run without the flag is
+never a scored run. Only single-step tasks are supported. The harness writes the
 per-turn snapshots through `contextbench.tokens.SnapshotLog` into
 `<trial_dir>/contextbench_harness/`, a sibling of `agent/` that Harbor does not mount into
 the container, together with `snapshot_manifest.jsonl` (each file's sha256, then a closing

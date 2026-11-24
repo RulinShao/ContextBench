@@ -446,9 +446,9 @@ def test_test_sh_ignores_a_planted_python_and_writes_no_reward(tmp_path: Path) -
     interpreter, removes the reward file and exits non-zero.
 
     This covers the script only. A process the agent left running, or a replaced
-    `bash`/`rm`, could still write a reward after it if the script ran in the agent's
-    container; that is why the tasks use a separate verifier environment (next test)
-    and why only runs with the host verifier are scored."""
+    `bash`/`rm`, could still write a reward after it; the tasks verify in a separate
+    environment (next test), but only runs graded by the host verifier, whose return
+    value Harbor records, are scored."""
     task = _task(tmp_path)
     box = tmp_path / "box"
     for d in ("tests", "logs/verifier", "logs/agent", "app/contextbench/harbor", "bin"):

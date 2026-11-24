@@ -20,8 +20,9 @@ are unchanged. The original release remains available at tag `v0.0-paper`.
   run. Snapshots in the agent's logs dir are not graded. Integrations written for the
   original release need the host verifier flag and this snapshot recorder.
 - **Separate verifier environment.** Tasks set `[verifier] environment_mode =
-  "separate"`: Harbor stops the agent's container before verification. `tests/test.sh`
-  grades nothing.
+  "separate"`: Harbor stops the agent's container before verification and verifies in a
+  fresh one. `tests/test.sh` grades nothing. The score of record is the verifier's return
+  value in the trial's `result.json`.
 - **Invalid instead of zero.** A run that cannot be graded (missing, unlisted, changed
   or unreadable snapshots, an unclosed manifest, a budget mismatch, a context over the
   budget other than the wall-hitting end of a `budget_wall` run) gets no `reward.json`;
@@ -83,3 +84,8 @@ was checked by other means (`tools/audit_trial.py`), never as a scored grade.
   recorded ones (`tokens_verified=0`), not recounted.
 - Harbor's own host-side writes into the agent dir (for example terminus-2's
   `trajectory.json`) are Harbor's and are not covered by the symlink guard.
+- On Singularity, Harbor 0.16.1 does not kill a process the agent detached with
+  `setsid` when it stops the container; it can keep writing files into the trial's
+  `verifier/` directory after the trial. Scores must be read from the trial's
+  `result.json` (the verifier's return value), and a run without the host verifier flag
+  is not a scored run.

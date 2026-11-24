@@ -193,11 +193,16 @@ contextbench export-hf ... --revision v0.1   # the card for the v0.1 revision
 a valid scored run, whatever reward file it may show. The harness writes the
 context snapshots to `<trial_dir>/contextbench_harness/`, a sibling of the `agent/`
 directory that Harbor does not mount into the container, and the verifier grades them on
-the host. The tasks set `[verifier] environment_mode = "separate"`, so Harbor stops the
-agent's container before verification and empties the verifier directory in a fresh
-container. Without the flag Harbor's default verifier finds no `tests/test.sh` in that
-fresh container and the trial ends with no reward (the script itself only deletes reward
-files and exits non-zero). A run that cannot be graded (no snapshots, a snapshot file the harness did not
+the host. Harbor takes the reward from the verifier's return value, never from a file
+the agent could have written; read it from the trial's `result.json`, not from
+`verifier/reward.json`. The tasks set `[verifier] environment_mode = "separate"`, so
+Harbor stops the agent's container before verification and empties the verifier
+directory in a fresh container. That does not make a run without the flag safe: on
+Singularity, a process the agent detaches from its session (`setsid`) survives Harbor's
+container stop and can keep writing into the trial's `verifier/` directory (observed with
+Harbor 0.16.1). Without the flag Harbor's default verifier finds no `tests/test.sh` in
+the fresh container and the trial normally ends with no reward (the script itself only
+deletes reward files and exits non-zero). A run that cannot be graded (no snapshots, a snapshot file the harness did not
 write, a changed or unreadable one, a manifest that was never closed, a budget mismatch)
 is **invalid**: the verifier writes `contextbench_result.json` with the reason, no
 `reward.json`, and fails, instead of reporting a zero.
@@ -242,6 +247,12 @@ snapshot the messages they send themselves.
 
 Only single-step Harbor tasks are supported: the tasks have no `[[steps]]`, and the
 verifier is not designed for multi-step trials.
+
+On Singularity, Harbor 0.16.1 does not kill a process the agent detached with `setsid`
+when it stops the container; such a process can keep writing files into the trial's
+`verifier/` directory (including `reward.json` and `contextbench_result.json`) after the
+trial. The score of record is the one in the trial's `result.json`, which Harbor writes
+on the host from the verifier's return value.
 The tasks set `network_mode = "public"` (Harbor's default) explicitly: agents that run in
 the container reach their model endpoint from it, and Singularity/Apptainer cannot
 enforce anything stricter. The gold and the oracle solution are public in this

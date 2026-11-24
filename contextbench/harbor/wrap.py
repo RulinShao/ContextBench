@@ -10,7 +10,8 @@ message of that session::
     CodexStream = cb_stream(Codex)
 
 Ready-made: ``contextbench.harbor.wrap:CodexStream`` and
-``contextbench.harbor.wrap:MiniSweAgentStream`` (``harbor trials start -a ...``).
+``contextbench.harbor.wrap:MiniSweAgentStream`` (``harbor trials start -a ...
+--verifier contextbench.harbor.verifiers:ContextBenchVerifier``).
 
 Only CLIs whose session can be resumed are supported, and ``cb_stream`` raises
 ``TypeError`` for any other class: running a fresh conversation per op would wipe

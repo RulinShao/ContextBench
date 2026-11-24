@@ -349,8 +349,9 @@ def build_all(
     levels marked ``main_figure``.
 
     Tasks land flat in ``out_dir`` as ``<family>-<level>-seed<seed>`` so the directory
-    is a Harbor dataset (``harbor jobs start -p out_dir``); the generated instances
-    go to ``instances_dir`` (default ``<out_dir>/../<name>_instances``).
+    is a Harbor dataset (``harbor jobs start -p out_dir --verifier ...``); the
+    generated instances go to ``instances_dir`` (default
+    ``<out_dir>/../<name>_instances``).
     """
     import importlib
 

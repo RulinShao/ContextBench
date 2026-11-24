@@ -276,3 +276,54 @@ def test_context_policy_runs_after_the_turn_is_recorded() -> None:
             assert kind == "turn"
             assert any(m["role"] == "tool" for m in recorded)
             assert all(m["role"] != "tool" for m in agent.messages)
+
+
+@pytest.mark.parametrize("last_command", [f"echo {ADVANCE_MARKER}", "ls"])
+def test_codex_over_budget_last_turn_is_always_budget_wall(tmp_path: Path,
+                                                           last_command: str) -> None:
+    """The context after codex's last turn is over the wall: the run ends as
+    budget_wall whether or not that turn's command would have ended the stream, and
+    the grader accepts the wall-hitting frame either way."""
+    pytest.importorskip("harbor")
+    from conftest import read_gold
+    from contextbench.graders import grade_run
+    from contextbench.harbor.wrap import CodexStream
+
+    inst = make_instance(tmp_path / "kv", "kv_store")
+    n_ops = len((inst / "chunks.jsonl").read_text().splitlines())
+    env = _container(tmp_path, inst)
+    trial = tmp_path / "trial"
+    (trial / "agent").mkdir(parents=True)
+    agent = object.__new__(CodexStream)
+    agent.logs_dir = trial / "agent"
+    agent._cb_init(1000, 100, 1000)
+    agent.cb_max_reminders = 5
+    agent.thread_id = None
+    turns = {"n": 0}
+
+    async def _configure(environment):
+        return None
+
+    async def _turn(environment, prompt, n):
+        turns["n"] += 1
+        return [{"type": "item.completed", "item": {
+            "type": "command_execution", "exit_code": 0,
+            "command": f"echo {ADVANCE_MARKER}" if turns["n"] < n_ops else last_command}}]
+
+    async def _session_messages(environment):
+        small = [{"role": "user", "content": "op"}]
+        if turns["n"] < n_ops:
+            return small
+        return small + [{"role": "tool", "content": "word " * 3000}]
+
+    agent._configure, agent._turn = _configure, _turn
+    agent._session_messages = _session_messages
+
+    class _Ctx:
+        metadata = None
+
+    asyncio.run(agent.run("instruction", env, _Ctx()))
+    assert agent.cb_turn_source.terminated_by == "budget_wall"
+    r = grade_run(trial, read_gold(inst), budget=1000, reserve=100)
+    assert r["grader_valid"] == 1.0 and r["terminated_by"] == "budget_wall"
+    assert r["n_snapshots_over_budget"] == 1.0

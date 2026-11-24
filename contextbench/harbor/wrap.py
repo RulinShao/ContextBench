@@ -450,6 +450,12 @@ class _CodexResume(_StreamChain):
                         and (ev.get("item") or {}).get("type") == "command_execution"]
                 messages = await self._session_messages(environment)
                 tokens = self.cb_snapshot(messages, "turn")
+                # The wall first: a context over the budget ends the run as
+                # budget_wall whatever the turn's last command was, so the same last
+                # frame is never graded differently by terminal reason.
+                if tokens > usable:
+                    ts.terminate("budget_wall")
+                    break
                 texts: list[str] = []
                 if cmds:
                     last = cmds[-1]
@@ -457,9 +463,6 @@ class _CodexResume(_StreamChain):
                     texts = ts.pending(unwrap_shell(str(last.get("command") or "")),
                                        1 if code is None else int(code), turn=n)
                 if ts.done:
-                    break
-                if tokens > usable:
-                    ts.terminate("budget_wall")
                     break
                 if texts:
                     reminders = 0

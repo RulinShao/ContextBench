@@ -268,6 +268,12 @@ class ContextSource:
         return out
 
 
+def _recorded_tokens(value: Any) -> int:
+    """A snapshot's recorded count for display before :func:`check_budget` (which
+    rejects a malformed one); 0 when absent or malformed."""
+    return value if isinstance(value, int) and not isinstance(value, bool) else 0
+
+
 def resolve_snapshot_root(path: Path | str) -> Path:
     """``path`` if it holds a snapshot manifest, else ``path/contextbench_harness``.
 
@@ -357,7 +363,7 @@ def read_harness_snapshots(root: Path | str) -> ContextSource:
         if not isinstance(messages, list) or obj.get("step") != e.get("step"):
             raise InvalidRun(f"{name} has no message list or the wrong step")
         frames.append(messages)
-        tokens.append(int(obj.get("tokens") or 0))
+        tokens.append(_recorded_tokens(obj.get("tokens")))
         records.append({k: v for k, v in obj.items() if k != "messages"})
     return ContextSource("snapshots", frames, tokens, len(frames), records,
                          lines[-1].get("terminated_by"))
@@ -395,7 +401,7 @@ def read_legacy_snapshots(agent_dir: Path | str) -> ContextSource:
         if "summarization_count" in rec:
             rec.setdefault("tool_output_in_user_turns", True)
         frames.append(messages)
-        tokens.append(int(obj.get("tokens") or 0))
+        tokens.append(_recorded_tokens(obj.get("tokens")))
         records.append(rec)
     if not frames:
         raise InvalidRun(f"no turn-*.json snapshots in {snap_dir}")
@@ -446,15 +452,36 @@ def read_context(run_dir: Path | str, *, mode: str = "harness") -> ContextSource
     raise ValueError(f"unknown grade mode {mode!r}; known: {', '.join(GRADE_MODES)}")
 
 
+def _as_int(value: Any, what: str) -> int:
+    """``int(value)``, or :class:`InvalidRun` naming ``what`` for a malformed value."""
+    if isinstance(value, bool):
+        raise InvalidRun(f"{what} is not an integer: {value!r}")
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        raise InvalidRun(f"{what} is not an integer: {value!r}") from None
+
+
+#: The token method that defines the benchmark's budget.
+EXACT_TOKEN_METHOD = "tiktoken:o200k_base"
+
+
 def check_budget(source: ContextSource, budget: int | None, reserve: int | None, *,
-                 strict_tokens: bool = True) -> dict[str, float]:
+                 strict_tokens: bool = True) -> dict[str, Any]:
     """Check a snapshot source against the task's budget; raise :class:`InvalidRun`.
 
     * Every snapshot that records a ``budget`` must record the task's; a harness
       snapshot (``strict_tokens``) must record one. A recorded ``reserve`` may be
-      larger than the task's (a stricter wall), never smaller.
-    * The grader recounts every frame. With ``strict_tokens``, a recorded count made
-      with the grader's own token method must equal the recount.
+      larger than the task's (a stricter wall), never smaller. Malformed numbers make
+      the run invalid.
+    * Token counts. When the grader counts with the benchmark's method
+      (``tiktoken:o200k_base``) it recounts every frame and checks its own count;
+      with ``strict_tokens`` a count recorded with that method must equal the
+      recount. When it cannot (no tiktoken or no o200k vocabulary here) it never
+      judges a run on its character estimate: it checks the harness's recorded
+      counts (in harness mode protected by the manifest's sha256; a harness snapshot
+      without one is invalid) and reports ``tokens_verified=0`` with a
+      ``token_note``. A legacy frame with neither is not size-checked.
     * The budget bounds the context *sent* to the model. When a run records
       ``kind="sent"`` snapshots, those are the frames checked (a post-reply or
       pre-compaction snapshot holds a sent context plus one reply or tool result, and
@@ -463,43 +490,57 @@ def check_budget(source: ContextSource, budget: int | None, reserve: int | None,
       recorded ``terminated_by="budget_wall"`` (the context that hit the wall is
       recorded before the run stops). An agent may enforce a stricter wall.
 
-    On success ``source.tokens`` holds the grader's counts; returns the numbers the
-    reward records.
+    On success ``source.tokens`` holds the counts used; returns the fields the reward
+    records (``tokens_verified`` 1.0 when every count is the grader's own o200k count).
     """
     if budget is None:
         raise InvalidRun("no task budget given to the grader (contextbench_budget_tokens "
                          "in task.toml metadata)")
-    budget = int(budget)
+    budget = _as_int(budget, "the task budget")
+    reserve = _as_int(reserve, "the task reserve") if reserve is not None else None
     method = encoder_name()
+    exact = method == EXACT_TOKEN_METHOD
     counted: list[int] = []
-    verified = True
+    unmeasured: set[int] = set()
+    used_recorded = False
     for i, (frame, rec) in enumerate(zip(source.frames, source.records)):
         rb = rec.get("budget")
         if rb is None:
             if strict_tokens:
                 raise InvalidRun(f"snapshot {i} records no budget")
-        elif int(rb) != budget:
+        elif _as_int(rb, f"snapshot {i} budget") != budget:
             raise InvalidRun(f"snapshot {i} was recorded under budget {rb}, the task's "
                              f"is {budget}")
         rr = rec.get("reserve")
-        if rr is not None and reserve is not None and int(rr) < int(reserve):
+        if rr is not None and reserve is not None and \
+                _as_int(rr, f"snapshot {i} reserve") < reserve:
             raise InvalidRun(f"snapshot {i} was recorded with reserve {rr}, below the "
                              f"task's {reserve}")
-        recount, _ = count_tokens(frame)
         recorded = rec.get("tokens")
-        if rec.get("token_method") == method:
-            if strict_tokens and recorded is not None and int(recorded) != recount:
-                raise InvalidRun(f"snapshot {i} records {recorded} tokens, its messages "
-                                 f"count {recount}")
-            tok = recount if strict_tokens else max(recount, int(recorded or 0))
+        recorded = _as_int(recorded, f"snapshot {i} token count") \
+            if recorded is not None else None
+        recount, _ = count_tokens(frame)
+        same_method = rec.get("token_method") == method
+        if same_method and strict_tokens and recorded is not None and recorded != recount:
+            raise InvalidRun(f"snapshot {i} records {recorded} tokens, its messages "
+                             f"count {recount}")
+        if exact:
+            tok = recount
+            if same_method and not strict_tokens and recorded is not None:
+                tok = max(recount, recorded)
+        elif recorded is not None:
+            # The benchmark's count cannot be reproduced here: judge the run on the
+            # harness's own count, never on this grader's character estimate.
+            tok = recorded
+            used_recorded = True
+        elif strict_tokens:
+            raise InvalidRun(f"snapshot {i} records no token count")
         else:
-            # The grader cannot reproduce the recorded method (no tiktoken here):
-            # keep the larger of the two and say the count is unverified.
-            verified = False
-            tok = max(recount, int(recorded or 0))
+            tok = recount
+            unmeasured.add(i)
         counted.append(tok)
     sent = [i for i, rec in enumerate(source.records) if rec.get("kind") == "sent"]
-    checked = sent or list(range(len(counted)))
+    checked = [i for i in (sent or list(range(len(counted)))) if i not in unmeasured]
     over = [i for i in checked if counted[i] > budget]
     if over:
         tail = over == checked[checked.index(over[0]):]
@@ -508,10 +549,22 @@ def check_budget(source: ContextSource, budget: int | None, reserve: int | None,
             raise InvalidRun(f"snapshot {i} holds {counted[i]} tokens, over the task "
                              f"budget {budget}")
     source.tokens = counted
-    return {"budget_tokens": float(budget),
-            "reserve_tokens": float(reserve) if reserve is not None else -1.0,
-            "tokens_verified": 1.0 if verified else 0.0,
-            "n_snapshots_over_budget": float(len(over))}
+    info: dict[str, Any] = {
+        "budget_tokens": float(budget),
+        "reserve_tokens": float(reserve) if reserve is not None else -1.0,
+        "tokens_verified": 1.0 if exact else 0.0,
+        "n_snapshots_over_budget": float(len(over)),
+        "token_method": method,
+    }
+    if not exact:
+        how = "the harness's recorded counts" if used_recorded else "no exact count"
+        info["token_note"] = (
+            f"unverified: this grader counts with {method}, not {EXACT_TOKEN_METHOD} "
+            f"(install tiktoken with the o200k_base vocabulary to verify); the budget "
+            f"was checked on {how}"
+            + (f"; {len(unmeasured)} frame(s) without a recorded count were not "
+               "size-checked" if unmeasured else ""))
+    return info
 
 
 def read_trajectory(run_dir: Path | str) -> ContextSource | None:

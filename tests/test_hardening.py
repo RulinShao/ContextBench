@@ -659,3 +659,101 @@ def test_plain_json_assistant_reply_is_decoded(tmp_path: Path, kv: dict) -> None
                                     "<<<ANSWER END>>>", "commands": []})
     root = _harness(tmp_path / "root", [[{"role": "assistant", "content": reply}]])
     assert _grade(root, kv)["matched"] == 1.0
+
+
+def _no_tiktoken(monkeypatch: pytest.MonkeyPatch) -> None:
+    import contextbench.tokens as T
+
+    monkeypatch.setattr(T, "_ENCODER", None)
+    monkeypatch.setattr(T, "_ENCODER_NAME", "_failed")
+
+
+def test_unreproducible_token_method_uses_the_recorded_count(
+        tmp_path: Path, kv: dict, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Without tiktoken the grader's character estimate (about 2x o200k on this text)
+    never invalidates a run: it checks the recorded count and says it is unverified."""
+    import contextbench.tokens as T
+
+    if T.encoder_name() != "tiktoken:o200k_base":
+        pytest.skip("needs tiktoken with the o200k_base vocabulary to record the run")
+    words = ["connection", "timeout", "retry", "upstream", "cache", "value", "key"]
+    text = " ".join(words[i % len(words)] for i in range(TEST_BUDGET - 4000))
+    frame = [{"role": "tool", "content": text + "\n" + _kv_blocks(kv)}]
+    root = _harness(tmp_path / "root", [frame])
+    recorded = T.count_tokens(frame)[0]
+    assert recorded <= TEST_BUDGET
+    _no_tiktoken(monkeypatch)
+    assert T.count_tokens(frame)[0] > TEST_BUDGET  # the estimate alone would fail it
+    r = _grade(root, kv)
+    assert _valid(r) and r["reward"] == 1.0
+    assert r["tokens_verified"] == 0.0 and r["agent_peak_tokens"] == recorded
+    assert "unverified" in r["token_note"] and r["token_method"].startswith("approx")
+    # the recorded count is still checked: over the budget, the run is invalid
+    monkeypatch.undo()
+    small = tmp_path / "small"
+    _harness(small, [frame], budget=1000, reserve=100)
+    _no_tiktoken(monkeypatch)
+    r = _grade(small, kv, budget=1000, reserve=100)
+    assert r["grader_valid"] == 0.0 and "over the task budget" in r["grader_note"]
+
+
+def test_unreproducible_token_method_legacy_is_visible(
+        tmp_path: Path, kv: dict, monkeypatch: pytest.MonkeyPatch) -> None:
+    agent = tmp_path / "agent"
+    d = agent / "context_snapshots"
+    d.mkdir(parents=True)
+    (d / "turn-0000.json").write_text(json.dumps({
+        "step": 0, "tokens": 10, "token_method": "tiktoken:o200k_base",
+        "budget": TEST_BUDGET, "messages": [{"role": "tool", "content": _kv_blocks(kv)}]}))
+    (d / "turn-0001.json").write_text(json.dumps({
+        "step": 1, "budget": TEST_BUDGET,
+        "messages": [{"role": "tool", "content": "x " * (4 * TEST_BUDGET)}]}))
+    _no_tiktoken(monkeypatch)
+    r = _grade(agent, kv, mode="legacy")
+    assert _valid(r) and r["reward"] == 1.0 and r["tokens_verified"] == 0.0
+    assert "not size-checked" in r["token_note"]
+
+
+def test_harness_snapshot_without_token_count_is_invalid_when_unverifiable(
+        tmp_path: Path, kv: dict, monkeypatch: pytest.MonkeyPatch) -> None:
+    import hashlib
+
+    root = _harness(tmp_path / "root", [[{"role": "tool", "content": _kv_blocks(kv)}]])
+    snap = root / "context_snapshots" / "turn-0000.json"
+    obj = json.loads(snap.read_text())
+    del obj["tokens"]
+    data = (json.dumps(obj) + "\n").encode()
+    snap.write_bytes(data)
+    man = root / "snapshot_manifest.jsonl"
+    lines = [json.loads(x) for x in man.read_text().splitlines()]
+    for ln in lines:
+        if ln.get("file") == snap.name:
+            ln["sha256"] = hashlib.sha256(data).hexdigest()
+    man.write_text("".join(json.dumps(x) + "\n" for x in lines))
+    _no_tiktoken(monkeypatch)
+    r = _grade(root, kv)
+    assert r["grader_valid"] == 0.0 and "no token count" in r["grader_note"]
+
+
+@pytest.mark.parametrize("field,value", [("budget", "lots"), ("reserve", [1]),
+                                         ("tokens", "many")])
+def test_malformed_recorded_numbers_are_invalid(tmp_path: Path, kv: dict, field: str,
+                                                value) -> None:
+    root = _harness(tmp_path / "root", [[{"role": "tool", "content": _kv_blocks(kv)}]],
+                    extra={field: value} if field != "tokens" else None)
+    if field == "tokens":
+        import hashlib
+
+        snap = root / "context_snapshots" / "turn-0000.json"
+        obj = json.loads(snap.read_text())
+        obj["tokens"] = value
+        data = (json.dumps(obj) + "\n").encode()
+        snap.write_bytes(data)
+        man = root / "snapshot_manifest.jsonl"
+        lines = [json.loads(x) for x in man.read_text().splitlines()]
+        for ln in lines:
+            if ln.get("file") == snap.name:
+                ln["sha256"] = hashlib.sha256(data).hexdigest()
+        man.write_text("".join(json.dumps(x) + "\n" for x in lines))
+    r = _grade(root, kv)
+    assert r["grader_valid"] == 0.0 and "not an integer" in r["grader_note"]

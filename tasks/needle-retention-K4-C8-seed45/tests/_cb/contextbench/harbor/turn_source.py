@@ -51,6 +51,7 @@ __all__ = [
     "StreamIdentityError",
     "TurnSource",
     "canonical_sha256",
+    "write_text_nofollow",
 ]
 
 #: Where the stream lives relative to the task's ``environment/`` directory, and
@@ -67,6 +68,49 @@ ENV_STREAM_SHA256 = "CONTEXTBENCH_STREAM_SHA256"
 ENV_STREAM_PATH = "CONTEXTBENCH_STREAM_PATH"
 
 STREAM_RECORD_NAME = "interactive_stream.json"
+
+
+def write_text_nofollow(path: Path | str, text: str, *, append: bool = False,
+                        root: Path | str | None = None) -> None:
+    """Write ``text`` to ``path`` without following a symlink; raise ``OSError``.
+
+    For host-side writes into a directory the agent can write (Harbor's agent logs
+    dir, mounted at ``/logs/agent``): an agent could plant a symlink there so that the
+    host process writes to a file of its choosing. The last component is opened with
+    ``O_NOFOLLOW``; with ``root``, every directory from ``root`` down to the file's
+    parent must not be a symlink either; and a file with more than one hard link is
+    refused.
+    """
+    path = Path(path)
+    if root is not None:
+        base = Path(root)
+        try:
+            rel = path.relative_to(base)
+        except ValueError:
+            raise OSError(f"{path} is not inside {base}") from None
+        cur = base
+        for part in (None, *rel.parts[:-1]):
+            cur = cur if part is None else cur / part
+            if cur.is_symlink():
+                raise OSError(f"refusing to write through the symlink {cur}")
+    flags = os.O_WRONLY | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0) | \
+        getattr(os, "O_CLOEXEC", 0) | (os.O_APPEND if append else 0)
+    try:
+        fd = os.open(path, flags, 0o644)
+    except OSError as exc:
+        if path.is_symlink():
+            raise OSError(f"refusing to write through the symlink {path}") from exc
+        raise
+    try:
+        if os.fstat(fd).st_nlink > 1:
+            raise OSError(f"refusing to write {path}: it has more than one hard link")
+        if not append:
+            os.ftruncate(fd, 0)
+        data = text.encode("utf-8")
+        while data:
+            data = data[os.write(fd, data):]
+    finally:
+        os.close(fd)
 
 
 class StreamIdentityError(RuntimeError):
@@ -383,7 +427,8 @@ class TurnSource:
 
     def write(self, logs_dir: Path | str | None = None) -> Path | None:
         """Write ``interactive_stream.json`` (to ``logs_dir``, else to the logs dir and
-        the harness dir). Best effort: never raises; returns the logs-dir copy."""
+        the harness dir), never through a symlink (:func:`write_text_nofollow`). Best
+        effort: never raises; returns the logs-dir copy."""
         targets = [Path(logs_dir)] if logs_dir else [
             t for t in (self.logs_dir, self.harness_dir) if t is not None]
         first: Path | None = None
@@ -391,8 +436,9 @@ class TurnSource:
             try:
                 target.mkdir(parents=True, exist_ok=True)
                 out = target / STREAM_RECORD_NAME
-                out.write_text(json.dumps(self.record(), indent=2) + "\n",
-                               encoding="utf-8")
+                # The logs dir is the agent's: never follow a link it planted.
+                write_text_nofollow(out, json.dumps(self.record(), indent=2) + "\n",
+                                    root=target)
                 if i == 0:
                     first = out
             except Exception:

@@ -26,9 +26,10 @@ contextbench_verifier = "contextbench.harbor.verifiers:ContextBenchVerifier"
 
 [verifier]
 # Grade on the host: --verifier contextbench.harbor.verifiers:ContextBenchVerifier
-# (tests/test.sh only refuses). "shared": the host verifier needs no container.
+# (tests/test.sh only refuses). "separate": Harbor stops the agent's container
+# before verifying, so nothing the agent started can touch the verifier dir.
 timeout_sec = 600.0
-environment_mode = "shared"
+environment_mode = "separate"
 
 [agent]
 timeout_sec = 14400.0

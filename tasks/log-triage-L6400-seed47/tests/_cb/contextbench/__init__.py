@@ -30,8 +30,11 @@ from .runner import (
 )
 from .stream import ADVANCE_MARKER, SUBMIT_MARKER, TERMINATED_BY, Op, render_op
 from .tokens import count_tokens, record_snapshot
+from .version import BENCHMARK_VERSION, PACKAGE_VERSION
 
-__version__ = "0.1.0"
+__version__ = PACKAGE_VERSION
+#: The benchmark version every grade records (see :mod:`contextbench.version`).
+__benchmark_version__ = BENCHMARK_VERSION
 
 FAMILIES = ("kv_store", "log_triage", "needle_retention", "sudoku_sketchpad")
 
@@ -44,6 +47,7 @@ __all__ = [
     "Op",
     "SUBMIT_MARKER",
     "TERMINATED_BY",
+    "__benchmark_version__",
     "__version__",
     "count_tokens",
     "grade_run",

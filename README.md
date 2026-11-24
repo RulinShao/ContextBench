@@ -9,7 +9,26 @@ turns, so any chat agent can be evaluated, with or without tools.
 - Paper: [Context Language Models](https://arxiv.org/abs/2609.37725) (arXiv:2609.37725)
 - Dataset: [context-language-model/ContextBench](https://huggingface.co/datasets/context-language-model/ContextBench) on Hugging Face
 - Context Language Models, which introduced the benchmark: [facebookresearch/context-language-models](https://github.com/facebookresearch/context-language-models)
-- Run every task with Harbor in one line: `harbor jobs start --repo RulinShao/ContextBench -d contextbench -a <agent> -m <model> --verifier contextbench.harbor.verifiers:ContextBenchVerifier`
+- Run every task with Harbor in one line: `harbor jobs start --repo RulinShao/ContextBench@v0.1 -d contextbench -a <agent> -m <model> --verifier contextbench.harbor.verifiers:ContextBenchVerifier`
+
+## Versions
+
+**v0.1** hardens the graders and the runner against reward hacking (see
+[`docs/DESIGN.md`](docs/DESIGN.md), threat model). It differs from the original release
+used in the paper in how runs are recorded and graded (host-side verifier, new run
+command); task streams, gold answers and the scoring of honest runs are unchanged, and
+the scores reported in the paper are not affected. The original release remains
+available at tag `v0.0-paper`.
+
+v0.1 lives on the `v0.1` branch of this repository and the `v0.1` revision of the
+Hugging Face dataset; the commands below pin it (`--repo RulinShao/ContextBench@v0.1`,
+`revision="v0.1"`), and `git clone -b v0.1` gets this code. Every grade records
+`benchmark_version` (`contextbench --version` shows it). Under v0.1 a run is gradable
+only when it is verified with `--verifier contextbench.harbor.verifiers:ContextBenchVerifier` and its harness records the context it sends
+through the snapshot recorder on the host (`CBStreamMixin`, or
+`contextbench.tokens.SnapshotLog(harness_dir_for(logs_dir))`). Integrations written for
+the original release need the host verifier flag and the snapshot recorder. Changes are
+listed in [`CHANGELOG.md`](CHANGELOG.md).
 
 ## Install
 
@@ -134,7 +153,7 @@ user messages in one conversation. The 256 paper tasks live in this repository u
 them straight from GitHub with no local build:
 
 ```bash
-harbor jobs start --repo RulinShao/ContextBench -d contextbench \
+harbor jobs start --repo RulinShao/ContextBench@v0.1 -d contextbench \
     -a contextbench.harbor.agents:Terminus2Stream -m openai/MODEL \
     --agent-kwarg api_base=http://HOST:PORT/v1 \
     --verifier contextbench.harbor.verifiers:ContextBenchVerifier
@@ -158,13 +177,15 @@ harbor jobs start -p cb_tasks/ -a contextbench.harbor.wrap:CodexStream -m openai
 
 The same tasks are published as the Hugging Face dataset
 [context-language-model/ContextBench](https://huggingface.co/datasets/context-language-model/ContextBench),
-readable with `datasets.load_dataset` (one config per family plus `all`) and, once
-downloaded, runnable with `harbor jobs start --registry-path registry.json -d contextbench -a <agent> -m <model> --verifier contextbench.harbor.verifiers:ContextBenchVerifier`.
+readable with `datasets.load_dataset` (one config per family plus `all`; pass
+`revision="v0.1"` for this version) and, once downloaded
+(`hf download ... --repo-type dataset --revision v0.1`), runnable with `harbor jobs start --registry-path registry.json -d contextbench -a <agent> -m <model> --verifier contextbench.harbor.verifiers:ContextBenchVerifier`.
 `contextbench export-hf` writes that layout (`data/*.parquet`, `harbor/`, `registry.json`, `README.md`) for any
 levels file (`pip install -e '.[hf]'`):
 
 ```bash
 contextbench export-hf --config clm_exp/configs/paper.yaml --repo-id context-language-model/ContextBench --out-dir hf/
+contextbench export-hf ... --revision v0.1   # the card for the v0.1 revision
 ```
 
 **Grading is host-side only.** Every run needs
@@ -234,7 +255,7 @@ looks up for `python:3.12-slim`, and point Harbor at that directory:
 
 ```bash
 apptainer build sif_cache/python_3.12-slim.sif environment/contextbench.def
-harbor jobs start --repo RulinShao/ContextBench -d contextbench -e singularity \
+harbor jobs start --repo RulinShao/ContextBench@v0.1 -d contextbench -e singularity \
     --ek singularity_image_cache_dir=$PWD/sif_cache -a <agent> -m <model> \
     --verifier contextbench.harbor.verifiers:ContextBenchVerifier
 ```

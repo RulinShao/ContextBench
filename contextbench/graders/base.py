@@ -49,6 +49,7 @@ __all__ = [
     "ContextSource",
     "InvalidRun",
     "answer_messages",
+    "answer_text",
     "atif_messages",
     "check_budget",
     "Grader",
@@ -107,6 +108,51 @@ def _decoded_tool_json(content: str) -> str | None:
         return None
     parts = [v for v in obj.values() if isinstance(v, str)]
     return "\n".join(parts) if parts else None
+
+
+def _decoded_assistant_json(content: str) -> str | None:
+    """An assistant reply that ends in one JSON object, with that object decoded.
+
+    terminus-2 asks the model for a JSON reply (``{"analysis": ..., "plan": ...,
+    "commands": [...], "task_complete": ...}``), often after free reasoning text. In
+    the raw reply a newline inside a string is the two characters ``\\n``, so an
+    ANSWER block the model wrote in ``analysis`` has no marker at the start of a line.
+    The model's own text is the decoded one: this returns the text before the object
+    followed by the object's top-level string fields (as for a JSON tool result; the
+    keystrokes inside ``commands`` are commands, whose output arrives as the next
+    terminal screen). ``None`` when the reply does not end in a JSON object.
+    """
+    text = content.rstrip()
+    if text.endswith("```"):
+        text = text[:-3].rstrip()
+    if not text.endswith("}"):
+        return None
+    decoder = json.JSONDecoder()
+    for m in re.finditer(r"^[ \t]*(?:```(?:json)?[ \t]*\n[ \t]*)?\{", text, re.M):
+        start = m.end() - 1
+        try:
+            obj, end = decoder.raw_decode(text, start)
+        except ValueError:
+            continue
+        if text[end:].strip() or not isinstance(obj, dict):
+            continue
+        parts = [v for v in obj.values() if isinstance(v, str)]
+        return text[:m.start()] + "\n".join(parts)
+    return None
+
+
+def answer_text(messages: Sequence[Any] | None) -> str:
+    """:func:`messages_text` of the answer messages, with JSON assistant replies
+    decoded (:func:`_decoded_assistant_json`)."""
+    out: list[Any] = []
+    for msg in messages or []:
+        if isinstance(msg, dict) and msg.get("role") == "assistant" and \
+                isinstance(msg.get("content"), str):
+            decoded = _decoded_assistant_json(msg["content"])
+            if decoded is not None:
+                msg = {**msg, "content": decoded}
+        out.append(msg)
+    return messages_text(out)
 
 
 def messages_text(messages: Sequence[Any] | None) -> str:
@@ -216,7 +262,7 @@ class ContextSource:
         out = []
         for i, frame in enumerate(self.frames):
             rec = self.records[i] if i < len(self.records) else {}
-            out.append(messages_text(answer_messages(
+            out.append(answer_text(answer_messages(
                 frame, tool_output_in_user_turns=bool(
                     rec.get("tool_output_in_user_turns")))))
         return out

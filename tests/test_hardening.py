@@ -592,3 +592,70 @@ def test_mixin_snapshot_failure_makes_the_run_invalid(tmp_path: Path, kv: dict) 
         asyncio.run(go())
     r = _grade(tmp_path / "trial", read_gold(inst))
     assert r["grader_valid"] == 0.0 and "failed to write" in r["grader_note"]
+
+
+# ------------------------------------------------- second review: JSON replies, tokens
+#: The shape of a real terminus-2 reply (reasoning, ``</think>``, then the JSON
+#: command object), taken from a smoke trial; only the key, value and ``analysis``
+#: text are this test's.
+_TERMINUS_REPLY = (
+    "I need to look up {key} from my stored data and emit the ANSWER block.\n"
+    "</think>\n\n"
+    "{{\n"
+    '  "analysis": {analysis},\n'
+    '  "plan": "Grep for {key} in the kvstore file, extract the value, emit the ANSWER '
+    'block, then signal READY_FOR_NEXT_OP.",\n'
+    '  "commands": [\n'
+    "    {{\n"
+    '      "keystrokes": "val=$(grep \'SET {key} \' /tmp/kvstore.txt | sed \'s/SET {key}'
+    ' = //\'); printf \'<<<ANSWER key={key}>>>\\\\n%s\\\\n<<<ANSWER END>>>\\\\n\' '
+    '\\"$val\\"; echo READY_FOR_NEXT_OP\\n",\n'
+    '      "duration": 2.0\n'
+    "    }}\n"
+    "  ],\n"
+    '  "task_complete": false\n'
+    "}}"
+)
+
+
+def _terminus_reply(key: str, analysis: str) -> str:
+    return _TERMINUS_REPLY.format(key=key, analysis=json.dumps(analysis))
+
+
+def test_terminus_json_reply_answer_in_analysis_counts(tmp_path: Path, kv: dict) -> None:
+    """A terminus-2 reply is JSON: an ANSWER block inside ``analysis`` has its
+    newlines escaped in the raw text, and is read decoded."""
+    q = kv["queries"][0]
+    reply = _terminus_reply(q["key"], f"GET {q['key']} received. Answer:\n"
+                            f"<<<ANSWER key={q['key']}>>>\n{q['value']}\n<<<ANSWER END>>>")
+    json.loads(reply[reply.index("{"):])  # the fixture is valid JSON after </think>
+    frame = [{"role": "user", "content": "instruction"},
+             {"role": "assistant", "content": reply}]
+    root = _harness(tmp_path / "root", [frame], extra={"tool_output_in_user_turns": True})
+    r = _grade(root, kv)
+    assert _valid(r) and r["n_answered"] == 1.0 and r["matched"] == 1.0
+
+
+def test_terminus_json_keystrokes_are_not_answers(tmp_path: Path, kv: dict) -> None:
+    """The printf inside ``commands`` is a command; its output (the next terminal
+    screen) is the answer, not the keystrokes."""
+    q = kv["queries"][0]
+    reply = _terminus_reply(q["key"], "Look it up and print the block.")
+    frame = [{"role": "user", "content": "instruction"},
+             {"role": "assistant", "content": reply}]
+    root = _harness(tmp_path / "a", [frame], extra={"tool_output_in_user_turns": True})
+    assert _grade(root, kv)["n_answered"] == 0.0
+    screen = {"role": "user", "content": "New Terminal Output:\n"
+              f"<<<ANSWER key={q['key']}>>>\n{q['value']}\n<<<ANSWER END>>>\n"
+              "READY_FOR_NEXT_OP\n"}
+    root = _harness(tmp_path / "b", [frame + [screen]],
+                    extra={"tool_output_in_user_turns": True})
+    assert _grade(root, kv)["matched"] == 1.0
+
+
+def test_plain_json_assistant_reply_is_decoded(tmp_path: Path, kv: dict) -> None:
+    q = kv["queries"][0]
+    reply = json.dumps({"analysis": f"<<<ANSWER key={q['key']}>>>\n{q['value']}\n"
+                                    "<<<ANSWER END>>>", "commands": []})
+    root = _harness(tmp_path / "root", [[{"role": "assistant", "content": reply}]])
+    assert _grade(root, kv)["matched"] == 1.0

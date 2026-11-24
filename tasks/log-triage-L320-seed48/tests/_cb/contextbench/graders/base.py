@@ -13,13 +13,15 @@ no fallback from one to another:
    **invalid**. ``graded_from="snapshots"``.
 2. ``legacy`` (offline re-grading only) -- the snapshots of a trial recorded before
    the snapshot root existed, in the agent's logs dir, with no manifest. Every file
-   must parse. ``graded_from="legacy_snapshots"``.
+   must parse; the budget check is reported, not enforced (such runs cannot meet the
+   v0.1 recording rules). ``graded_from="legacy_snapshots"``.
 3. ``oracle`` -- the gold answers that ``solution/solve.sh`` writes as
    ``final_report.txt``; only for checking that a task, its gold and its grader
    agree. ``graded_from="final_report"``, never comparable to a context grade.
 
-Before scoring, the harness and legacy sources are checked against the task's token
-budget (:func:`check_budget`). ANSWER blocks (kv store, log triage) are read only
+Before scoring, the harness source is checked against the task's token budget
+(:func:`check_budget`); for the legacy source that check is advisory
+(:func:`check_budget_advisory`). ANSWER blocks (kv store, log triage) are read only
 from what the agent produced -- assistant messages and tool output
 (:func:`answer_messages`). Needle retention reads the whole final context, because
 retaining the delivered lines is what it measures, and the sudoku grader reads every
@@ -54,6 +56,7 @@ __all__ = [
     "answer_text",
     "atif_messages",
     "check_budget",
+    "check_budget_advisory",
     "Grader",
     "read_harness_snapshots",
     "read_legacy_snapshots",
@@ -248,6 +251,8 @@ class ContextSource:
     records: list[dict[str, Any]] = field(default_factory=list)
     #: The run's terminal reason as the harness recorded it, when known.
     terminated_by: str | None = None
+    #: Where a legacy run's ``terminated_by`` was read from (a file name).
+    terminated_by_from: str | None = None
 
     @property
     def final_frame(self) -> list[Any]:
@@ -400,7 +405,9 @@ def read_legacy_snapshots(agent_dir: Path | str) -> ContextSource:
     Reads ``<agent_dir>/context_snapshots/turn-*.json`` with no manifest: such files
     sat in the agent's logs dir, so this mode is for re-grading trials whose
     provenance has been checked by other means (``tools/audit_trial.py``). Every file
-    must parse; ``terminated_by`` comes from ``<agent_dir>/interactive_stream.json``.
+    must parse; ``terminated_by`` comes from ``<agent_dir>/interactive_stream.json``, or
+    from ``usage.json`` when that file does not record it. The budget check of this
+    mode is advisory (:func:`check_budget_advisory`).
     Terminus2Stream snapshots (recognized by ``summarization_count``) get
     ``tool_output_in_user_turns``, which that harness now records itself.
     """
@@ -431,6 +438,7 @@ def read_legacy_snapshots(agent_dir: Path | str) -> ContextSource:
     if not frames:
         raise InvalidRun(f"no turn-*.json snapshots in {snap_dir}")
     terminated_by = None
+    terminated_by_from = None
     stream = agent_dir / "interactive_stream.json"
     if stream.is_file():
         try:
@@ -438,8 +446,19 @@ def read_legacy_snapshots(agent_dir: Path | str) -> ContextSource:
                 "terminated_by")
         except Exception:
             raise InvalidRun("interactive_stream.json is not readable JSON") from None
+        if terminated_by is not None:
+            terminated_by_from = stream.name
+    usage = agent_dir / "usage.json"
+    if terminated_by is None and usage.is_file():
+        # Some harnesses recorded the terminal reason only in their usage summary.
+        try:
+            obj = json.loads(usage.read_text(encoding="utf-8"))
+        except Exception:
+            obj = None
+        if isinstance(obj, dict) and isinstance(obj.get("terminated_by"), str):
+            terminated_by, terminated_by_from = obj["terminated_by"], usage.name
     return ContextSource("legacy_snapshots", frames, tokens, len(frames), records,
-                         terminated_by)
+                         terminated_by, terminated_by_from)
 
 
 #: The only report the oracle mode reads (what ``solution/solve.sh`` writes).
@@ -592,6 +611,52 @@ def check_budget(source: ContextSource, budget: int | None, reserve: int | None,
     return info
 
 
+def check_budget_advisory(source: ContextSource, budget: int | None,
+                          reserve: int | None) -> dict[str, Any]:
+    """The budget check of ``legacy`` mode: reported, never fatal.
+
+    Run folders written before v0.1 cannot meet its recording rules (their snapshots
+    do not say which context was sent to the model, and some harnesses recorded the
+    terminal reason elsewhere), so an offline re-grade scores them and reports the
+    outcome of :func:`check_budget` instead of invalidating: ``budget_checked=
+    "advisory"``, ``budget_ok`` (1.0 when the strict check would pass),
+    ``budget_note`` (why not), ``budget_max_tokens`` and ``n_snapshots_over_budget``.
+    """
+    try:
+        info = check_budget(source, budget, reserve, strict_tokens=False)
+        info.update({"budget_checked": "advisory", "budget_ok": 1.0})
+    except InvalidRun as exc:
+        counts = []
+        for frame, rec in zip(source.frames, source.records):
+            if encoder_name() == EXACT_TOKEN_METHOD or rec.get("tokens") is None:
+                counts.append(count_tokens(frame)[0])
+            else:
+                counts.append(_recorded_tokens(rec.get("tokens")))
+        source.tokens = counts
+        try:
+            limit = int(budget) if budget is not None else None
+        except (TypeError, ValueError):
+            limit = None
+        info = {
+            "budget_tokens": float(limit) if limit is not None else -1.0,
+            "reserve_tokens": -1.0,
+            "tokens_verified": 1.0 if encoder_name() == EXACT_TOKEN_METHOD else 0.0,
+            "n_snapshots_over_budget": float(
+                sum(1 for c in counts if limit is not None and c > limit)),
+            "token_method": encoder_name(),
+            "budget_checked": "advisory",
+            "budget_ok": 0.0,
+            "budget_note": str(exc),
+        }
+        try:
+            if reserve is not None:
+                info["reserve_tokens"] = float(int(reserve))
+        except (TypeError, ValueError):
+            pass
+    info["budget_max_tokens"] = float(max(source.tokens)) if source.tokens else 0.0
+    return info
+
+
 def read_trajectory(run_dir: Path | str) -> ContextSource | None:
     """Read an ATIF ``trajectory.json`` as a single frame."""
     path = find_trajectory(run_dir)
@@ -698,9 +763,11 @@ class Grader:
         try:
             source = read_context(run_dir, mode=mode)
             info: dict[str, Any] = {}
-            if mode != "oracle":
-                info = check_budget(source, budget, reserve,
-                                    strict_tokens=(mode == "harness"))
+            if mode == "harness":
+                info = check_budget(source, budget, reserve)
+                info["budget_checked"] = "enforced"
+            elif mode == "legacy":
+                info = check_budget_advisory(source, budget, reserve)
             result = self.score(source, gold)
         except InvalidRun as exc:
             out = self._invalid(_GRADED_FROM[mode], str(exc))
@@ -720,6 +787,8 @@ class Grader:
         result.update(self._token_stats(source.tokens))
         if source.terminated_by is not None:
             result["terminated_by"] = source.terminated_by
+        if source.terminated_by_from is not None:
+            result["terminated_by_from"] = source.terminated_by_from
         return result
 
     def check_gold(self, gold: dict) -> None:

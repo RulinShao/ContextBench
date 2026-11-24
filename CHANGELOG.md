@@ -87,8 +87,8 @@ was checked by other means (`tools/audit_trial.py`), never as a scored grade.
   recorded ones (`tokens_verified=0`), not recounted.
 - Harbor's own host-side writes into the agent dir (for example terminus-2's
   `trajectory.json`) are Harbor's and are not covered by the symlink guard.
-- On Singularity, Harbor 0.16.1 does not kill a process the agent detached with
-  `setsid` when it stops the container; it can keep writing files into the trial's
+- On Singularity, Harbor 0.16.1 does not always stop every process the agent
+  started when it stops the container; such a process can keep writing files into the trial's
   `verifier/` directory after the trial. Scores must be read from the trial's
   `result.json` (the verifier's return value), and a run without the host verifier flag
   is not a scored run.

@@ -27,7 +27,7 @@ the context snapshots to ``<trial_dir>/contextbench_harness/``, which is not mou
 into the container; Harbor records the verifier's return value as the reward. The task
 sets ``[verifier] environment_mode = "separate"``: Harbor stops the agent's container
 before verification and empties the verifier dir in a fresh one (on Singularity a
-process the agent detached with ``setsid`` can survive that stop, so a run without the
+process started by the agent can survive that stop, so a run without the
 host verifier is never a scored run). ``tests/test.sh``
 -- what Harbor would run when no verifier is given -- runs no interpreter: it removes
 any reward file left in ``/logs/verifier`` and exits non-zero, so such a trial has no

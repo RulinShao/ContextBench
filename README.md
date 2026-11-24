@@ -198,8 +198,8 @@ the agent could have written; read it from the trial's `result.json`, not from
 `verifier/reward.json`. The tasks set `[verifier] environment_mode = "separate"`, so
 Harbor stops the agent's container before verification and empties the verifier
 directory in a fresh container. That does not make a run without the flag safe: on
-Singularity, a process the agent detaches from its session (`setsid`) survives Harbor's
-container stop and can keep writing into the trial's `verifier/` directory (observed with
+Singularity, a process started by the agent can survive Harbor's container stop and
+keep writing into the trial's `verifier/` directory (observed with
 Harbor 0.16.1). Without the flag Harbor's default verifier finds no `tests/test.sh` in
 the fresh container and the trial normally ends with no reward (the script itself only
 deletes reward files and exits non-zero). A run that cannot be graded (no snapshots, a snapshot file the harness did not
@@ -253,7 +253,7 @@ snapshot the messages they send themselves.
 Only single-step Harbor tasks are supported: the tasks have no `[[steps]]`, and the
 verifier is not designed for multi-step trials.
 
-On Singularity, Harbor 0.16.1 does not kill a process the agent detached with `setsid`
+On Singularity, Harbor 0.16.1 does not always stop every process the agent started
 when it stops the container; such a process can keep writing files into the trial's
 `verifier/` directory (including `reward.json` and `contextbench_result.json`) after the
 trial. The score of record is the one in the trial's `result.json`, which Harbor writes
@@ -330,8 +330,6 @@ anywhere else are not graded.
   the original benchmark code, and the rulings behind those differences.
 - [`docs/HARBOR_SMOKE.md`](docs/HARBOR_SMOKE.md) -- end-to-end Harbor trials with a real
   model, and an audit of their traces.
-- [`docs/MULTIFRAME_GRADING.md`](docs/MULTIFRAME_GRADING.md) -- a proposal (not
-  implemented) for timing-aware needle and sudoku rewards.
 
 ## Development
 

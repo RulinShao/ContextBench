@@ -321,7 +321,7 @@ def write_card(out_dir: Path | str, *, repo_id: str, families: list[str],
         harbor_ref=f"@{revision}" if revision else "",
         download_rev=f" --revision {revision}" if revision else "",
         package_ref=f" at revision `{revision}`" if revision else "",
-        scored_note=(" A run without it is not a valid scored run." if revision else ""),
+        scored_note=("\nA run without it is not a valid scored run." if revision else ""),
     )
     path = Path(out_dir) / "README.md"
     path.write_text(text, encoding="utf-8")

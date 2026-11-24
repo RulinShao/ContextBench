@@ -12,7 +12,8 @@ string fields are encoded: ``graded_from_code`` (3 snapshots, 4 legacy_snapshots
 1 final_report, 0 none), ``grade_mode_code`` (0 harness, 1 legacy, 2 oracle) and
 ``terminated_by_code`` (index into ``contextbench.stream.TERMINATED_BY``, -1
 unknown). ``budget_tokens``/``reserve_tokens`` are the task's budget the run was
-checked against. The unencoded result goes to ``contextbench_result.json`` next to
+checked against, and ``benchmark_version`` the version of the rules it was graded
+under (:mod:`contextbench.version`). The unencoded result goes to ``contextbench_result.json`` next to
 ``reward.json``.
 
 A run that cannot be graded is **invalid**, not zero: :func:`write_rewards` removes
@@ -35,6 +36,7 @@ from typing import Any
 from ..graders import grade_run
 from ..graders.base import GRADE_MODES, InvalidRun, resolve_snapshot_root
 from ..stream import TERMINATED_BY
+from ..version import BENCHMARK_VERSION
 from .turn_source import write_text_nofollow
 
 __all__ = ["GRADED_FROM_CODES", "GRADE_MODE_CODES", "InvalidGrade", "harbor_rewards",
@@ -92,6 +94,8 @@ def harbor_rewards(run_dir: Path | str, gold: dict, *, mode: str = "harness",
         if isinstance(v, (int, float)) and not isinstance(v, bool)
     }
     numeric["graded_from_code"] = GRADED_FROM_CODES.get(str(rewards.get("graded_from")), 0)
+    # Harbor's reward dict is numeric: "0.1" is recorded as 0.1.
+    numeric["benchmark_version"] = float(BENCHMARK_VERSION)
     numeric["grade_mode_code"] = GRADE_MODE_CODES[mode]
     # The harness's closing manifest line is the record of the terminal reason.
     terminated_by = rewards.get("terminated_by") or stream.get("terminated_by")
@@ -102,6 +106,7 @@ def harbor_rewards(run_dir: Path | str, gold: dict, *, mode: str = "harness",
         if isinstance(stream.get(key), int):
             numeric[key] = stream[key]
     full = {
+        "benchmark_version": BENCHMARK_VERSION,
         "rewards": rewards,
         "valid": bool(rewards.get("grader_valid")),
         "grade_mode": mode,

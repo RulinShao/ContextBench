@@ -44,6 +44,7 @@ from ..tokens import (
     encoder_name,
     snapshot_paths,
 )
+from ..version import BENCHMARK_VERSION
 
 __all__ = [
     "GRADE_MODES",
@@ -704,6 +705,7 @@ class Grader:
         except InvalidRun as exc:
             out = self._invalid(_GRADED_FROM[mode], str(exc))
             out["grade_mode"] = mode
+            out["benchmark_version"] = BENCHMARK_VERSION
             if budget is not None:
                 out["budget_tokens"] = float(budget)
             return out
@@ -712,6 +714,7 @@ class Grader:
             "graded_from": source.graded_from,
             "grade_mode": mode,
             "grader_valid": 1.0,
+            "benchmark_version": BENCHMARK_VERSION,
         })
         result.update(info)
         result.update(self._token_stats(source.tokens))

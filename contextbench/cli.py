@@ -20,6 +20,7 @@ from . import feasibility
 from .graders import grade_run
 from .levels import level_knobs, level_regime
 from .tasks.scaffold import FAMILIES
+from .version import BENCHMARK_VERSION, PACKAGE_VERSION
 
 __all__ = ["main"]
 
@@ -231,6 +232,8 @@ def _add_budget_args(ap: argparse.ArgumentParser) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(prog="contextbench", description=__doc__.splitlines()[0])
+    ap.add_argument("--version", action="version",
+                    version=f"contextbench {PACKAGE_VERSION} (benchmark v{BENCHMARK_VERSION})")
     sub = ap.add_subparsers(dest="command", required=True)
 
     gen = sub.add_parser("generate", help="write one instance to a directory")

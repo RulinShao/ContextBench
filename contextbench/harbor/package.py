@@ -87,7 +87,7 @@ exit 3
 
 #: The package files ``tests/_cb`` needs to grade: standard library only.
 _VENDORED = (
-    "__init__.py", "runner.py", "stream.py", "tokens.py",
+    "__init__.py", "runner.py", "stream.py", "tokens.py", "version.py",
     "graders/__init__.py", "graders/base.py", "graders/kv.py", "graders/log.py",
     "graders/needle.py", "graders/sudoku.py",
     "harbor/__init__.py", "harbor/mixin.py", "harbor/turn_source.py",

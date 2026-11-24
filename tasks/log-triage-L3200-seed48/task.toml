@@ -26,7 +26,7 @@ contextbench_verifier = "contextbench.harbor.verifiers:ContextBenchVerifier"
 [verifier]
 # Grade on the host: --verifier contextbench.harbor.verifiers:ContextBenchVerifier
 # (tests/test.sh only refuses). "separate": Harbor stops the agent's container
-# before verifying, so nothing the agent started can touch the verifier dir.
+# before verifying and verifies in a fresh one.
 timeout_sec = 600.0
 environment_mode = "separate"
 

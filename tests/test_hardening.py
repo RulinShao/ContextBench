@@ -888,3 +888,74 @@ def test_reward_files_are_not_written_through_a_planted_symlink(tmp_path: Path,
     assert numeric["reward"] == 1.0 and victim.read_text() == "original"
     assert not (out / "reward.json").is_symlink()
     assert json.loads((out / "reward.json").read_text())["reward"] == 1.0
+
+
+# --------------------------------- legacy re-grading of run folders written before v0.1
+def _legacy_folder(agent: Path, frames: list[list[dict]], *, stream: dict | None,
+                   usage: dict | None) -> Path:
+    """An old-layout agent dir: snapshots with no kind, no manifest."""
+    d = agent / "context_snapshots"
+    d.mkdir(parents=True)
+    for i, frame in enumerate(frames):
+        (d / f"turn-{i:04d}.json").write_text(json.dumps(
+            {"step": i, "tokens": 0, "budget": TEST_BUDGET, "messages": frame}))
+    if stream is not None:
+        (agent / "interactive_stream.json").write_text(json.dumps(stream))
+    if usage is not None:
+        (agent / "usage.json").write_text(json.dumps(usage))
+    return agent
+
+
+def _big() -> dict:
+    return {"role": "tool", "content": "word " * (TEST_BUDGET + 500)}
+
+
+def test_legacy_reads_terminated_by_from_usage_json(tmp_path: Path, kv: dict) -> None:
+    """A(i): the over-budget frame is the last one and the harness recorded
+    budget_wall only in usage.json: the legacy budget check passes."""
+    answer = [{"role": "tool", "content": _kv_blocks(kv)}]
+    agent = _legacy_folder(tmp_path / "agent", [answer, answer + [_big()]],
+                           stream={"n_ops_delivered": 3}, usage={"terminated_by": "budget_wall"})
+    r = _grade(agent, kv, mode="legacy")
+    assert _valid(r) and r["reward"] == 1.0
+    assert r["terminated_by"] == "budget_wall" and r["terminated_by_from"] == "usage.json"
+    assert r["budget_checked"] == "advisory" and r["budget_ok"] == 1.0
+    assert r["n_snapshots_over_budget"] == 1.0 and r["budget_max_tokens"] > TEST_BUDGET
+    # interactive_stream.json wins when it records a reason
+    agent2 = _legacy_folder(tmp_path / "agent2", [answer],
+                            stream={"terminated_by": "submit"},
+                            usage={"terminated_by": "budget_wall"})
+    r2 = _grade(agent2, kv, mode="legacy")
+    assert r2["terminated_by"] == "submit"
+    assert r2["terminated_by_from"] == "interactive_stream.json"
+
+
+@pytest.mark.parametrize("usage", [{"terminated_by": "step_cap"}, None,
+                                   {"terminated_by": "stream_exhausted"}])
+def test_legacy_budget_check_is_advisory(tmp_path: Path, kv: dict, usage) -> None:
+    """A(ii): an over-budget frame mid-run (old snapshots do not say which context was
+    sent) is reported, and the run is still scored in legacy mode."""
+    answer = [{"role": "tool", "content": _kv_blocks(kv)}]
+    agent = _legacy_folder(tmp_path / "agent", [answer + [_big()], answer],
+                           stream=None, usage=usage)
+    r = _grade(agent, kv, mode="legacy")
+    assert _valid(r) and r["reward"] == 1.0
+    assert r["budget_checked"] == "advisory" and r["budget_ok"] == 0.0
+    assert "over the task budget" in r["budget_note"]
+    assert r["n_snapshots_over_budget"] == 1.0
+    # the same frames from a harness snapshot root are still invalid
+    root = _harness(tmp_path / "root", [answer + [_big()], answer])
+    h = _grade(root, kv)
+    assert h["grader_valid"] == 0.0 and "over the task budget" in h["grader_note"]
+    assert "budget_checked" not in h
+    assert _grade(_harness(tmp_path / "ok", [answer]), kv)["budget_checked"] == "enforced"
+
+
+def test_legacy_budget_mismatch_and_missing_budget_are_advisory(tmp_path: Path,
+                                                               kv: dict) -> None:
+    answer = [{"role": "tool", "content": _kv_blocks(kv)}]
+    agent = _legacy_folder(tmp_path / "agent", [answer], stream=None, usage=None)
+    r = _grade(agent, kv, mode="legacy", budget=TEST_BUDGET * 2)
+    assert _valid(r) and r["budget_ok"] == 0.0 and "budget" in r["budget_note"]
+    r = grade_run(agent, kv, mode="legacy")
+    assert _valid(r) and r["budget_ok"] == 0.0 and "no task budget" in r["budget_note"]

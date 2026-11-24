@@ -105,3 +105,29 @@ def test_repository_registry_matches_tasks_dir() -> None:
     assert all(path == f"tasks/{name}" for name, path in every.items())
     fam = [d for n, d in rows.items() if n != "contextbench"]
     assert sum(len(d["tasks"]) for d in fam) == 256
+
+
+@pytest.mark.needs_o200k
+def test_export_for_a_separate_revision(tmp_path: Path) -> None:
+    from contextbench.version import BENCHMARK_VERSION
+
+    base, rev = tmp_path / "base", tmp_path / "rev"
+    export_hf(CONFIG, base, repo_id="org/ContextBench", paper_url="https://example.org/p",
+              families=["kv_store"], seeds=[42])
+    summary = export_hf(CONFIG, rev, repo_id="org/ContextBench",
+                        paper_url="https://example.org/p", families=["kv_store"],
+                        seeds=[42], revision="v0.1")
+    assert summary["revision"] == "v0.1"
+    assert summary["benchmark_version"] == BENCHMARK_VERSION
+    assert pq.read_table(rev / "data" / "kv_store.parquet").to_pylist() == \
+        pq.read_table(base / "data" / "kv_store.parquet").to_pylist()
+    assert (rev / "registry.json").read_text() == (base / "registry.json").read_text()
+    card = (rev / "README.md").read_text()
+    assert "## Version" in card and f"ContextBench v{BENCHMARK_VERSION}" in card
+    assert 'load_dataset("org/ContextBench", "kv_store", split="test", revision="v0.1")' \
+        in card
+    assert "hf download org/ContextBench --repo-type dataset --revision v0.1" in card
+    assert "harbor jobs start --repo RulinShao/ContextBench@v0.1 -d contextbench" in card
+    assert card.count("--verifier contextbench.harbor.verifiers:ContextBenchVerifier") >= 3
+    plain = (base / "README.md").read_text()
+    assert "## Version" not in plain and "revision=" not in plain

@@ -32,6 +32,7 @@ from typing import Any
 
 from .harbor.package import build_all
 from .levels import iter_levels
+from .version import BENCHMARK_VERSION
 
 __all__ = ["REGISTRY_FILENAME", "export_hf", "registry_entries", "write_card"]
 
@@ -135,7 +136,7 @@ user turns, more than the context budget holds, and the reward is read from the
 agent's own messages: what survived in its context, not what it wrote to disk.
 
 Paper: [Context Language Models](https://arxiv.org/abs/2609.37725) ([paper page]({paper_url}))
-
+{version_section}
 ## Families
 
 | config | task | reward |
@@ -180,7 +181,7 @@ Each operation is shown to the agent as
 import json
 from datasets import load_dataset
 
-ds = load_dataset("{repo_id}", "kv_store", split="{split}")   # or "all"
+ds = load_dataset("{repo_id}", "kv_store", split="{split}"{revision_arg})   # or "all"
 row = ds[0]
 ops = row["chunks"]            # list of {{"index", "header", "body"}}
 gold = json.loads(row["gold"])
@@ -212,7 +213,7 @@ lists the datasets `contextbench` (every task) and `contextbench-<family>`
 them in one line:
 
 ```bash
-harbor jobs start --repo {harbor_repo} -d contextbench \\
+harbor jobs start --repo {harbor_repo}{harbor_ref} -d contextbench \\
     -a contextbench.harbor.agents:Terminus2Stream -m <model> \\
     --verifier contextbench.harbor.verifiers:ContextBenchVerifier
 ```
@@ -220,7 +221,7 @@ harbor jobs start --repo {harbor_repo} -d contextbench \\
 Or download this repository and run Harbor from inside it:
 
 ```bash
-hf download {repo_id} --repo-type dataset --local-dir contextbench-hf
+hf download {repo_id} --repo-type dataset{download_rev} --local-dir contextbench-hf
 cd contextbench-hf
 harbor jobs start --registry-path registry.json -d contextbench \\
     -a contextbench.harbor.agents:Terminus2Stream -m <model> \\
@@ -228,8 +229,8 @@ harbor jobs start --registry-path registry.json -d contextbench \\
 ```
 
 Tasks are graded on the host by `contextbench.harbor.verifiers:ContextBenchVerifier`
-(the `contextbench` package); without `--verifier`, a task's `tests/test.sh` writes no
-reward. Use `-d contextbench-sudoku-sketchpad` for one family, `-i <task_id>` for one
+(the `contextbench` package{package_ref}); without `--verifier`, a task's `tests/test.sh`
+writes no reward.{scored_note} Use `-d contextbench-sudoku-sketchpad` for one family, `-i <task_id>` for one
 task, `-p harbor/` to run the downloaded directory without the registry, or `-a oracle`
 with `--verifier-kwarg mode=oracle` to check a task with its reference solution. Agents
 that deliver operations into a running conversation ship with the `contextbench`
@@ -259,11 +260,41 @@ Apache-2.0.
 DEFAULT_HARBOR_REPO = "RulinShao/ContextBench"
 
 
+_VERSION_SECTION = """
+## Version
+
+This is revision `{revision}` of this dataset: ContextBench v{benchmark_version}. Pass
+`revision="{revision}"` to load it (see Usage); the dataset's default branch is a
+separate revision.
+
+**v{benchmark_version}** hardens the graders and the runner against reward hacking (see
+`docs/DESIGN.md` in [{harbor_repo}](https://github.com/{harbor_repo}/tree/{revision}),
+threat model). It differs from the original release used in the paper in how runs are
+recorded and graded (host-side verifier, new run command); task streams, gold answers
+and the scoring of honest runs are unchanged, and the scores reported in the paper are
+not affected. The original release remains available at tag `v0.0-paper` of the GitHub
+repository.
+
+A run is scored only with `--verifier contextbench.harbor.verifiers:ContextBenchVerifier`
+and a harness that records its per-turn context through the `contextbench` snapshot
+recorder (`CBStreamMixin`, or `contextbench.tokens.SnapshotLog`); integrations written
+for the original release need both. Install the package at this revision:
+`pip install "contextbench[harbor] @ git+https://github.com/{harbor_repo}.git@{revision}"`.
+"""
+
+
 def write_card(out_dir: Path | str, *, repo_id: str, families: list[str],
                counts: dict[str, int], n_levels: int, seeds: list[int],
                budget: int, reserve: int, paper_url: str,
-               harbor_repo: str = DEFAULT_HARBOR_REPO) -> Path:
-    """Write ``README.md``: the dataset card with one config per family plus ``all``."""
+               harbor_repo: str = DEFAULT_HARBOR_REPO,
+               revision: str | None = None) -> Path:
+    """Write ``README.md``: the dataset card with one config per family plus ``all``.
+
+    ``revision`` (for example ``v0.1``) writes the card of an export meant for a
+    separate revision of the dataset repository: a version section, and load,
+    download and Harbor commands pinned to that revision (the GitHub copy at the git
+    ref of the same name). Without it the card is the default-branch card.
+    """
     cfg = ['- config_name: all', '  default: true', '  data_files:',
            f'  - split: {SPLIT}', f'    path: {DATA_SUBDIR}/*.parquet']
     for family in families:
@@ -283,6 +314,14 @@ def write_card(out_dir: Path | str, *, repo_id: str, families: list[str],
         repo_id=repo_id,
         harbor_repo=harbor_repo,
         split=SPLIT,
+        version_section=_VERSION_SECTION.format(
+            revision=revision, benchmark_version=BENCHMARK_VERSION,
+            harbor_repo=harbor_repo) if revision else "",
+        revision_arg=f', revision="{revision}"' if revision else "",
+        harbor_ref=f"@{revision}" if revision else "",
+        download_rev=f" --revision {revision}" if revision else "",
+        package_ref=f" at revision `{revision}`" if revision else "",
+        scored_note=(" A run without it is not a valid scored run." if revision else ""),
     )
     path = Path(out_dir) / "README.md"
     path.write_text(text, encoding="utf-8")
@@ -303,9 +342,14 @@ def export_hf(
     overwrite: bool = False,
     harbor_repo: str = DEFAULT_HARBOR_REPO,
     harbor_subdir: str = HARBOR_SUBDIR,
+    revision: str | None = None,
     **task_kwargs: Any,
 ) -> dict:
-    """Build the whole repository layout under ``out_dir``; return a summary."""
+    """Build the whole repository layout under ``out_dir``; return a summary.
+
+    ``revision`` builds the export for a separate revision of the dataset repository
+    (see :func:`write_card`); the data, tasks and registry are the same either way.
+    """
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
     inst_root = Path(instances_dir) if instances_dir else out.parent / f"{out.name}_instances"
@@ -344,7 +388,8 @@ def export_hf(
     write_card(out, repo_id=repo_id, families=fams,
                counts={f: len(r) for f, r in rows.items()}, n_levels=n_levels,
                seeds=seeds, budget=budget, reserve=reserve, paper_url=paper_url,
-               harbor_repo=harbor_repo)
+               harbor_repo=harbor_repo, revision=revision)
     return {"out_dir": str(out), "n_rows": sum(len(r) for r in rows.values()),
             "rows_per_family": {f: len(r) for f, r in rows.items()},
-            "n_tasks": len(tasks), "registry_datasets": [r["name"] for r in registry]}
+            "n_tasks": len(tasks), "registry_datasets": [r["name"] for r in registry],
+            "benchmark_version": BENCHMARK_VERSION, "revision": revision}

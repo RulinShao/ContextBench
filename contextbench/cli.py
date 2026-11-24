@@ -219,6 +219,7 @@ def cmd_export_hf(args: argparse.Namespace) -> int:
         seeds=[int(x) for x in args.seeds.split(",")] if args.seeds else None,
         families=args.family or None, overwrite=args.overwrite,
         harbor_repo=args.harbor_repo, harbor_subdir=args.harbor_subdir,
+        revision=args.revision,
     )
     print(json.dumps(summary, indent=2))
     return 0
@@ -338,6 +339,10 @@ def build_parser() -> argparse.ArgumentParser:
                     help="GitHub repo holding the tasks + registry.json, for the card's --repo line")
     hf.add_argument("--harbor-subdir", default="harbor",
                     help="directory the Harbor tasks are written to (the repository uses tasks)")
+    hf.add_argument("--revision", default=None,
+                    help="build the export for a separate revision (branch/tag) of the "
+                         "dataset repo, e.g. v0.1: version section and commands pinned "
+                         "to it in the card; data and tasks are unchanged")
     hf.add_argument("--instances-dir", type=Path, default=None)
     hf.add_argument("--family", action="append", default=[])
     hf.add_argument("--seeds", default=None)

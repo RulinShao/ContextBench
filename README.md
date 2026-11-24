@@ -11,6 +11,23 @@ turns, so any chat agent can be evaluated, with or without tools.
 - Context Language Models, which introduced the benchmark: [facebookresearch/context-language-models](https://github.com/facebookresearch/context-language-models)
 - Run every task with Harbor in one line: `harbor jobs start --repo RulinShao/ContextBench -d contextbench -a <agent> -m <model>`
 
+## Versions
+
+**v0.1** hardens the graders and the runner against reward hacking (see
+[docs/DESIGN.md](https://github.com/RulinShao/ContextBench/blob/v0.1/docs/DESIGN.md),
+threat model). It differs from the original release used in the paper in how runs are
+recorded and graded (host-side verifier, new run command); task streams, gold answers
+and the scoring of honest runs are unchanged, and the scores reported in the paper are
+not affected. The original release remains available at tag `v0.0-paper`.
+
+This branch holds the original release. v0.1 is on the
+[`v0.1` branch](https://github.com/RulinShao/ContextBench/tree/v0.1) (its README and
+`CHANGELOG.md` describe it) and in the `v0.1` revision of the Hugging Face dataset. To
+use it: `git clone -b v0.1 https://github.com/RulinShao/ContextBench.git`,
+`harbor jobs start --repo RulinShao/ContextBench@v0.1 ... --verifier
+contextbench.harbor.verifiers:ContextBenchVerifier`, or
+`load_dataset("context-language-model/ContextBench", "<config>", revision="v0.1")`.
+
 ## Install
 
 ```bash

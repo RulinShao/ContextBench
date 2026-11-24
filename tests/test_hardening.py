@@ -959,3 +959,28 @@ def test_legacy_budget_mismatch_and_missing_budget_are_advisory(tmp_path: Path,
     assert _valid(r) and r["budget_ok"] == 0.0 and "budget" in r["budget_note"]
     r = grade_run(agent, kv, mode="legacy")
     assert _valid(r) and r["budget_ok"] == 0.0 and "no task budget" in r["budget_note"]
+
+
+def test_summary_quoting_the_format_does_not_swallow_a_real_answer(tmp_path: Path,
+                                                                   kv: dict) -> None:
+    """The shape of a stored Self-Compact trial: a compaction summary (a user turn) and
+    the agent's own reasoning quote the format inline (an opener with no END), and
+    the real answer follows as tool output. An unanchored match over the joined text
+    would pair the inline opener with the real block's END and lose the answer; the
+    line-anchored rule credits the block the agent actually printed."""
+    q = kv["queries"][0]
+    frame = [
+        {"role": "system", "content": "sys"},
+        {"role": "user", "content": "Summary of earlier work: each GET must be answered "
+         "with a `<<<ANSWER key=<key>>>` block containing the exact stored value."},
+        {"role": "assistant", "content": f"GET {q['key']}: print <<<ANSWER key={q['key']}>>> "
+         "from the store, then READY."},
+        {"role": "tool", "content": f"<<<ANSWER key={q['key']}>>>\n{q['value']}\n"
+         "<<<ANSWER END>>>\nREADY_FOR_NEXT_OP\n"},
+    ]
+    from contextbench.graders.base import messages_text
+    from contextbench.graders.kv import ANSWER_RE
+
+    assert q["key"] not in {k for k, _ in ANSWER_RE.findall(messages_text(frame))}
+    r = _grade(_harness(tmp_path / "root", [frame]), kv)
+    assert r["n_answered"] == 1.0 and r["matched"] == 1.0
